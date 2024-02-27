@@ -1,3 +1,5 @@
+import os
+
 from fastapi import HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from datetime import datetime, timedelta
@@ -5,10 +7,13 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 
 from db.billing_db import get_user
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Define some constants for JWT
-SECRET_KEY = "chrnv_secret"  # Change this to a secure secret key
-ALGORITHM = "HS256"
+SECRET_KEY = os.getenv('secret')  # Change this to a secure secret key
+ALGORITHM = os.getenv('algorithm')
 ACCESS_TOKEN_EXPIRE_MINUTES = 10
 REFRESH_TOKEN_EXPIRE_YEARS = 1
 
@@ -39,8 +44,8 @@ def create_access_token(data: dict):
 # Function to create refresh token
 def create_refresh_token(data: dict):
     to_encode = data.copy()
-    # expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_YEARS * 365)
-    expire = datetime.utcnow() + timedelta(minutes=2)
+    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_YEARS * 365)
+    # expire = datetime.utcnow() + timedelta(minutes=1)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -78,12 +83,13 @@ async def authenticate_user(login: str, password: str):
 #         return username
 #     except JWTError:
 #         raise credentials_exception
+
 # Function to get current user from access token
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
     token = credentials.credentials
     payload = decode_token(token)
     if payload is None:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise HTTPException(status_code=401, detail="Invalid access token")
     return payload.get("sub")
 
 

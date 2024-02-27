@@ -2,7 +2,7 @@ import datetime
 
 from fastapi import FastAPI, HTTPException, Depends
 from db.app_db import init_db, store_refresh_token, add_user, is_refresh_token_valid
-from db.billing_db import get_user_data, get_balance, get_rate
+from db.billing_db import get_full_user_data
 from schemas import User, Token, RefreshTokenRequest, UserData
 from service import authenticate_user, create_access_token, create_refresh_token, decode_token, get_current_user
 
@@ -51,11 +51,16 @@ async def refresh_token(request: RefreshTokenRequest):
 # Define the /api/me endpoint
 @app.get("/api/me", response_model=UserData)
 async def read_current_user(current_user: str = Depends(get_current_user)):
-    user_data = await get_user_data(current_user)
-    balance = await get_balance(current_user)
-    rate = await get_rate(current_user)
+    user_data = await get_full_user_data(current_user)
     # Here you can fetch additional information about the current user from your database
-    return {"username": user_data['fio'], "account": current_user, "balance": balance, "rate": rate}
+    return {"username": user_data['full_name'],
+            "account": current_user,
+            "balance": user_data['balance'],
+            "rate": {"rate_name": user_data["rate_name"],
+                     "rate_speed": user_data["rate_speed"],
+                     "rate_cost": user_data["rate_cost"]},
+            "min_pay": user_data["min_pay"],
+            "pay_day": user_data["pay_day"]}
 
 
 @app.on_event("startup")

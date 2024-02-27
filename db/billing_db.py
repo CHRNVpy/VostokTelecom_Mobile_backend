@@ -24,6 +24,17 @@ db_config = {
 }
 
 
+def penultimate_date_of_current_month():
+    # Get the current date
+    today = datetime.now()
+    # Get the last day of the current month
+    _, last_day = calendar.monthrange(today.year, today.month)
+    # Calculate the penultimate date by subtracting one day from the last day
+    penultimate_date = today.replace(day=last_day) - timedelta(days=1)
+    formatted_date = penultimate_date.strftime("%d.%m.%Y")
+    return formatted_date
+
+
 async def get_user(login: str):
     query = 'SELECT title, pswd FROM contract WHERE title = %s'
     async with aiomysql.create_pool(**db_config) as pool:
@@ -36,8 +47,6 @@ async def get_user(login: str):
                 else:
                     return False
 
-
-# print(asyncio.run(get_user('10002')))
 
 async def get_balance(account):
     # SQL query
@@ -65,16 +74,6 @@ async def get_balance(account):
 
 
 async def get_minimal_payment(account):
-    def penultimate_date_of_current_month():
-        # Get the current date
-        today = datetime.now()
-        # Get the last day of the current month
-        _, last_day = calendar.monthrange(today.year, today.month)
-        # Calculate the penultimate date by subtracting one day from the last day
-        penultimate_date = today.replace(day=last_day) - timedelta(days=1)
-        formatted_date = penultimate_date.strftime("%d.%m.%y")
-        return formatted_date
-
     balance_info = {}
     rate_cost = {
         'Минимальный-15': 3550,
@@ -261,13 +260,78 @@ async def get_all_alerted_accounts(zone_id):
 
     return [int(res[0]) for res in result if res[0].isdigit()]
 
-# Replace 'your_cid' with the actual cid value
-# cid = 1313
-# print(asyncio.run(get_balance(cid)))
-# print(asyncio.run(check_login('10138')))
-# print(asyncio.run(get_rate('11809')))
-# print(asyncio.run(get_user_data('11809')))
-# print(asyncio.run(get_balance('11809')))
-# print(asyncio.run(get_minimal_payment('11809')))
-# print(asyncio.run(get_payments('11809')))
-# print(asyncio.run(get_all_alerted_accounts(32)))
+
+async def get_full_user_data(account):
+    rate_cost = {
+        'Минимальный-15': '3550тг/мес',
+        'Стартовый-50': '4990тг/мес',
+        'Оптимальный-100': '5990тг/мес',
+        'Ускоренный-300': '6990тг/мес'
+    }
+
+    rate_cost_int = {
+        'Минимальный-15': 3550,
+        'Стартовый-50': 4990,
+        'Оптимальный-100': 5990,
+        'Ускоренный-300': 6990
+    }
+
+    def _prettify_name(full_name):
+        if len(full_name.split(' ')) == 4:
+            name = full_name.rsplit(' ', 1)[0]
+        else:
+            name = full_name
+        return name
+
+    user_info = {'account': account}
+    # SQL query
+    user_sql = """
+    SELECT 
+        contract.comment AS full_name,
+        contract_parameter_type_phone.value AS phone,
+        contract_parameter_type_2.address AS address,
+        contract_parameter_type_3.email AS email,
+        tariff_plan.title_web AS rate_name,
+        (contract_balance.summa1 + contract_balance.summa2 - contract_balance.summa3 - contract_balance.summa4) AS balance
+    FROM 
+        contract
+    LEFT JOIN 
+        contract_parameter_type_phone ON contract_parameter_type_phone.cid = contract.id
+    LEFT JOIN 
+        contract_parameter_type_2 ON contract_parameter_type_2.cid = contract.id
+    LEFT JOIN 
+        contract_parameter_type_3 ON contract_parameter_type_3.cid = contract.id
+    LEFT JOIN 
+        contract_tariff ON contract_tariff.cid = contract.id
+    LEFT JOIN 
+        tariff_plan ON contract_tariff.tpid = tariff_plan.id
+    LEFT JOIN
+        contract_balance ON contract_balance.cid = contract.id
+    WHERE 
+        contract.title = %s
+    ORDER BY 
+        contract_tariff.id DESC
+    LIMIT 1
+    """
+
+    async with aiomysql.create_pool(**db_config) as pool:
+        async with pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(user_sql, (account,))
+                user_data = await cur.fetchone()
+                if user_data:
+                    user_info['full_name'] = _prettify_name(user_data['full_name']) if user_data['full_name'] else ''
+                    user_info['phone'] = user_data['phone'] if user_data['phone'] else ''
+                    user_info['address'] = user_data['address'] if user_data['address'] else ''
+                    user_info['email'] = user_data['email'] if user_data['email'] else ''
+                    user_info['rate_name'] = user_data['rate_name'] if user_data['rate_name'] else ''
+                    user_info['rate_speed'] = user_data['rate_name'].split("-")[1] + 'Мбит/с' if user_data[
+                        'rate_name'] else ''
+                    user_info['rate_cost'] = rate_cost[user_data['rate_name']] if user_data['rate_name'] else ''
+                    user_info['balance'] = float(user_data['balance']) if user_data['balance'] else 0.00
+                    min_payment = rate_cost_int[user_info['rate_name']] - user_info['balance'] if user_info['rate_name'] else 0
+                    user_info['min_pay'] = float(min_payment) if float(min_payment) > 0 else 0.00
+                    user_info['pay_day'] = penultimate_date_of_current_month()
+    return user_info
+
+# print(asyncio.run(get_full_user_data('11529')))

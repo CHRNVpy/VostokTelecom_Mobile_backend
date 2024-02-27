@@ -27,3 +27,5 @@ class UserData(BaseModel):
     account: str
     balance: float
     rate: Rate
+    min_pay: float
+    pay_day: str
