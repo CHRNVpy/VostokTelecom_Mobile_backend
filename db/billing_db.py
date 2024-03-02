@@ -120,7 +120,7 @@ async def get_payments(account):
         return date_90_days_ago
 
     payments_sql = """
-    SELECT summa, lm FROM contract_payment WHERE cid =
+    SELECT id, summa, lm FROM contract_payment WHERE cid =
     (SELECT id FROM contract WHERE title = %s) 
     AND dt > %s
     ORDER BY dt DESC"""
@@ -130,9 +130,10 @@ async def get_payments(account):
             async with conn.cursor() as cur:
                 await cur.execute(payments_sql, (account, date_90_days_ago()))
                 payments = await cur.fetchall()
-                payment = '\n'.join(
-                    [f'Сумма: {float(pay[0])}, Дата: {pay[1].strftime("%d.%m.%y %H:%M:%S")}' for pay in payments])
-                return payment
+                history = [{'id': pay[0],
+                            'date': pay[2].strftime("%d.%m.%y %H:%M:%S"),
+                            'summ': float(pay[1])} for pay in payments if payments]
+                return history
 
 
 async def check_login(login):
@@ -335,3 +336,4 @@ async def get_full_user_data(account):
     return user_info
 
 # print(asyncio.run(get_full_user_data('11529')))
+# print(asyncio.run(get_payments(11816)))

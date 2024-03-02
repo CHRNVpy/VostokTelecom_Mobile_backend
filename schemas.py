@@ -1,3 +1,5 @@
+from typing import List
+
 from pydantic import BaseModel
 
 
@@ -29,3 +31,13 @@ class UserData(BaseModel):
     rate: Rate
     min_pay: float
     pay_day: str
+
+
+class Payment(BaseModel):
+    id: int
+    date: str
+    summ: int
+
+
+class PaymentsList(BaseModel):
+    payments: List[Payment]

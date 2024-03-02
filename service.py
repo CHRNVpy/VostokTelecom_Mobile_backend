@@ -1,6 +1,6 @@
 import os
 
-from fastapi import HTTPException, Depends
+from fastapi import HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
@@ -89,7 +89,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(b
     token = credentials.credentials
     payload = decode_token(token)
     if payload is None:
-        raise HTTPException(status_code=401, detail="Invalid access token")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token")
     return payload.get("sub")
 
 
