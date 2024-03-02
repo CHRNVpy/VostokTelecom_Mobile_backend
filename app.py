@@ -3,9 +3,10 @@ import datetime
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.responses import JSONResponse
 from db.app_db import init_db, store_refresh_token, add_user, is_refresh_token_valid
-from db.billing_db import get_full_user_data, get_payments
-from schemas import User, Token, RefreshTokenRequest, UserData, PaymentsList
-from service import authenticate_user, create_access_token, create_refresh_token, decode_token, get_current_user
+from db.billing_db import get_full_user_data, get_payments, update_password
+from schemas import User, Token, RefreshTokenRequest, UserData, PaymentsList, PasswordUpdate
+from service import authenticate_user, create_access_token, create_refresh_token, decode_token, get_current_user, \
+    validate_password
 
 # Define the FastAPI app
 app = FastAPI(title='VostokTelekom Mobile API')
@@ -62,6 +63,13 @@ async def read_current_user(current_user: str = Depends(get_current_user)):
                      "rate_cost": user_data["rate_cost"]},
             "min_pay": user_data["min_pay"],
             "pay_day": user_data["pay_day"]}
+
+
+@app.patch("/api/me", responses={401: {"description": "Invalid access token"},
+                                 400: {"description": "Password cannot be empty"}})
+async def set_new_password(password: PasswordUpdate = Depends(validate_password),
+                           current_user: str = Depends(get_current_user)):
+    await update_password(current_user, password.password)
 
 
 @app.get("/api/collection-payments", response_model=PaymentsList,

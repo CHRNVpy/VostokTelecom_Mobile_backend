@@ -33,6 +33,10 @@ class UserData(BaseModel):
     pay_day: str
 
 
+class PasswordUpdate(BaseModel):
+    password: str
+
+
 class Payment(BaseModel):
     id: int
     date: str

@@ -170,6 +170,18 @@ async def check_password(password):
                     return False
 
 
+async def update_password(account, new_password):
+    # SQL query
+    query = """
+    UPDATE contract SET pswd = %s WHERE title = %s
+    """
+    async with aiomysql.create_pool(**db_config) as pool:
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(query, (new_password, account))
+                await conn.commit()
+
+
 async def get_user_data(account):
     user_info = {'account': account}
     # SQL query

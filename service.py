@@ -9,6 +9,8 @@ from passlib.context import CryptContext
 from db.billing_db import get_user
 from dotenv import load_dotenv
 
+from schemas import PasswordUpdate
+
 load_dotenv()
 
 # Define some constants for JWT
@@ -55,6 +57,14 @@ def create_refresh_token(data: dict):
 def verify_password(plain_password, db_password):
     # return pwd_context.verify(plain_password, db_password)
     return plain_password == db_password
+
+
+async def validate_password(password_update: PasswordUpdate):
+    # Check if password is empty
+    if not password_update.password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password cannot be empty")
+
+    return password_update
 
 
 # Function to authenticate user
