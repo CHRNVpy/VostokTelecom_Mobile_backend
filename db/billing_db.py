@@ -15,11 +15,24 @@ DB_NAME = os.getenv('billing_db_name')
 DB_HOST = os.getenv('billing_db_host')
 DB_PORT = int(os.getenv('billing_db_port'))
 
+OLD_USER = os.getenv('old_billing_db_user')
+OLD_PASS = os.getenv('old_billing_db_pass')
+OLD_DB_NAME = os.getenv('old_billing_db_name')
+OLD_DB_HOST = os.getenv('old_billing_db_host')
+
 db_config = {
     'user': USER,
     'password': PASS,
     'db': DB_NAME,
     'host': DB_HOST,
+    'port': DB_PORT,
+}
+
+old_db_config = {
+    'user': OLD_USER,
+    'password': OLD_PASS,
+    'db': OLD_DB_NAME,
+    'host': OLD_DB_HOST,
     'port': DB_PORT,
 }
 
@@ -35,7 +48,7 @@ def penultimate_date_of_current_month():
     return formatted_date
 
 
-async def get_user(login: str):
+async def get_user_new(login: str):
     query = 'SELECT title, pswd FROM contract WHERE title = %s'
     async with aiomysql.create_pool(**db_config) as pool:
         async with pool.acquire() as conn:
@@ -48,70 +61,30 @@ async def get_user(login: str):
                     return False
 
 
-async def get_balance(account):
-    # SQL query
-    balance_sql = """
-    SELECT
-            (summa1 + summa2 - summa3 - summa4) AS sum_result
-        FROM
-            contract_balance
-        WHERE
-            cid = (SELECT id FROM contract WHERE title = %s)
-        ORDER BY
-            yy DESC, mm DESC
-        LIMIT 1;
-    """
-
-    async with aiomysql.create_pool(**db_config) as pool:
+async def get_user_old(login: str | int):
+    query = 'SELECT login, passwd1 FROM account WHERE login = %s'
+    async with aiomysql.create_pool(**old_db_config) as pool:
         async with pool.acquire() as conn:
             async with conn.cursor() as cur:
-                await cur.execute(balance_sql, (account,))
-                result = await cur.fetchone()
+                await cur.execute(query, (login,))
+                result = await cur.fetchone()  # is not None
                 if result is not None:
-                    return float(result[0])
+                    return {'username': result[0], 'password': result[1]}
                 else:
-                    return 0.00
+                    return False
 
 
-async def get_minimal_payment(account):
-    balance_info = {}
-    rate_cost = {
-        'Минимальный-15': 3550,
-        'Стартовый-50': 4990,
-        'Оптимальный-100': 5990,
-        'Ускоренный-300': 6990
-    }
-    balance_sql = """
-        SELECT
-                (summa1 + summa2 - summa3 - summa4) AS sum_result
-            FROM
-                contract_balance
-            WHERE
-                cid = (SELECT id FROM contract WHERE title = %s)
-            ORDER BY
-                yy DESC, mm DESC
-            LIMIT 1;
-        """
-    rate_name_sql = """SELECT title_web FROM tariff_plan 
-        WHERE id = (SELECT tpid FROM contract_tariff 
-                    WHERE cid = (SELECT id FROM contract WHERE title = %s) 
-                    ORDER BY id DESC LIMIT 1)"""
-
-    async with aiomysql.create_pool(**db_config) as pool:
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(balance_sql, (account,))
-                balance = await cur.fetchone()
-                balance_info['balance'] = float(balance[0])
-                await cur.execute(rate_name_sql, (account,))
-                rate_name = await cur.fetchone()
-                min_payment = rate_cost[rate_name[0]] - balance[0] if rate_name is not None else 0
-                balance_info['min_pay'] = float(min_payment) if float(min_payment) > 0 else 0.00
-                balance_info['pay_day'] = penultimate_date_of_current_month()
-    return balance_info
+async def get_user(account):
+    user = {}
+    match len(account):
+        case 4:
+            user = await get_user_old(account)
+        case 5:
+            user = await get_user_new(account)
+    return user
 
 
-async def get_payments(account):
+async def get_payments_new(account):
     def date_90_days_ago():
         # Get the current date
         today = datetime.now()
@@ -134,6 +107,41 @@ async def get_payments(account):
                             'date': pay[2].strftime("%d.%m.%y %H:%M:%S"),
                             'summ': float(pay[1])} for pay in payments if payments]
                 return history
+
+
+async def get_payments_old(account):
+    def date_90_days_ago():
+        # Get the current date
+        today = datetime.now()
+        # Calculate the date 90 days ago
+        date_90_days_ago = today - timedelta(days=90)
+        return date_90_days_ago.timestamp()
+
+    payments_sql = """
+    SELECT id, sum, date_add FROM deposit WHERE account_id =
+    (SELECT id FROM account WHERE login = %s) 
+    AND date_add > %s
+    ORDER BY date_add DESC"""
+
+    async with aiomysql.create_pool(**old_db_config) as pool:
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(payments_sql, (account, date_90_days_ago()))
+                payments = await cur.fetchall()
+                history = [{'id': pay[0],
+                            'date': datetime.fromtimestamp(pay[2]).strftime("%d.%m.%Y %H:%M:%S"),
+                            'summ': float(pay[1])} for pay in payments if payments]
+                return history
+
+
+async def get_payments(account):
+    payments = []
+    match len(account):
+        case 4:
+            payments = await get_payments_old(account)
+        case 5:
+            payments = await get_payments_new(account)
+    return payments
 
 
 async def check_login(login):
@@ -182,85 +190,6 @@ async def update_password(account, new_password):
                 await conn.commit()
 
 
-async def get_user_data(account):
-    user_info = {'account': account}
-    # SQL query
-    name_sql = """
-    SELECT comment FROM contract WHERE title = %s
-    """
-    phone_sql = """
-    SELECT value FROM contract_parameter_type_phone 
-    WHERE cid = (SELECT id FROM contract WHERE title = %s)"""
-    address_sql = """
-    SELECT address FROM contract_parameter_type_2 
-    WHERE cid = (SELECT id FROM contract WHERE title = %s)"""
-    email_sql = """
-    SELECT email FROM contract_parameter_type_3 
-    WHERE cid = (SELECT id FROM contract WHERE title = %s)"""
-
-    async with aiomysql.create_pool(**db_config) as pool:
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(name_sql, (account,))
-                full_name = await cur.fetchone()
-                if full_name is not None:
-                    if len(full_name[0].split(' ')) == 4:
-                        user_info['fio'] = full_name[0].rsplit(' ', 1)[0]
-                    else:
-                        user_info['fio'] = full_name[0]
-                else:
-                    user_info['fio'] = ''
-                await cur.execute(phone_sql, (account,))
-                phone = await cur.fetchone()
-                if phone is not None:
-                    user_info['phone'] = phone[0]
-                else:
-                    user_info['phone'] = ''
-                await cur.execute(address_sql, (account,))
-                address = await cur.fetchone()
-                if address is not None:
-                    user_info['address'] = address[0].lstrip(', ')
-                else:
-                    user_info['address'] = ''
-                await cur.execute(email_sql, (account,))
-                email = await cur.fetchone()
-                if email is not None:
-                    user_info['email'] = email[0]
-                else:
-                    user_info['email'] = ''
-    return user_info
-
-
-async def get_rate(account):
-    rate_cost = {
-        'Минимальный-15': '3550тг/мес',
-        'Стартовый-50': '4990тг/мес',
-        'Оптимальный-100': '5990тг/мес',
-        'Ускоренный-300': '6990тг/мес'
-    }
-    rate_info = {}
-    # SQL query
-    rate_name_sql = """SELECT title_web FROM tariff_plan 
-        WHERE id = (SELECT tpid FROM contract_tariff 
-                    WHERE cid = (SELECT id FROM contract WHERE title = %s) 
-                    ORDER BY id DESC LIMIT 1)"""
-
-    async with aiomysql.create_pool(**db_config) as pool:
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(rate_name_sql, (account,))
-                rate_name = await cur.fetchone()
-                if rate_name is not None:
-                    rate_info['rate_name'] = rate_name[0]
-                    rate_info['rate_speed'] = f'{rate_name[0].split("-")[1]}Мбит/с'
-                    rate_info['rate_cost'] = rate_cost[rate_name[0]]
-                else:
-                    rate_info['rate_name'] = ''
-                    rate_info['rate_speed'] = ''
-                    rate_info['rate_cost'] = ''
-    return rate_info
-
-
 async def get_all_alerted_accounts(zone_id):
     # SQL query
     sql = """SELECT title FROM contract WHERE gr = %s"""
@@ -274,7 +203,7 @@ async def get_all_alerted_accounts(zone_id):
     return [int(res[0]) for res in result if res[0].isdigit()]
 
 
-async def get_full_user_data(account):
+async def get_user_data_new(account):
     rate_cost = {
         'Минимальный-15': '3550тг/мес',
         'Стартовый-50': '4990тг/мес',
@@ -342,10 +271,64 @@ async def get_full_user_data(account):
                         'rate_name'] else ''
                     user_info['rate_cost'] = rate_cost[user_data['rate_name']] if user_data['rate_name'] else ''
                     user_info['balance'] = float(user_data['balance']) if user_data['balance'] else 0.00
-                    min_payment = rate_cost_int[user_info['rate_name']] - user_info['balance'] if user_info['rate_name'] else 0
+                    min_payment = rate_cost_int[user_info['rate_name']] - user_info['balance'] if user_info[
+                        'rate_name'] else 0
                     user_info['min_pay'] = float(min_payment) if float(min_payment) > 0 else 0.00
                     user_info['pay_day'] = penultimate_date_of_current_month()
     return user_info
 
+
+async def get_user_data_old(account: str | int):
+    user_info = {'account': account}
+    user_query = """
+    SELECT 
+        CONCAT(account.last_name, ' ', account.first_name, ' ', account.patronymic) AS full_name,
+        account.cell_phone1 AS phone, 
+        account.email AS email, 
+        account.balance AS balance,
+        tariff.name AS rate_name,
+        tariff.price AS rate_cost
+    FROM 
+        account
+    LEFT JOIN 
+        account_service ON account_service.account_id = account.id
+    LEFT JOIN 
+        tariff ON tariff.id = account_service.tariff_id
+    WHERE 
+        account.login = %s
+    LIMIT 1;
+    """
+    async with aiomysql.create_pool(**old_db_config) as pool:
+        async with pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(user_query, (account,))
+                user_data = await cur.fetchone()
+                # print(user_data)
+                if user_data:
+                    user_info['full_name'] = user_data['full_name'] if user_data['full_name'] else ''
+                    user_info['phone'] = user_data['phone'] if user_data['phone'] else ''
+                    user_info['address'] = ''  # user_data['address'] if user_data['address'] else ''
+                    user_info['email'] = user_data['email'] if user_data['email'] else ''
+                    user_info['rate_name'] = user_data['rate_name'] if user_data['rate_name'] else ''
+                    user_info['rate_speed'] = ''  # user_data['rate_name'].split("-")[1] + 'Мбит/с' if user_data[
+                    # 'rate_name'] else ''
+                    user_info['rate_cost'] = user_data['rate_cost'] if user_data['rate_cost'] else ''
+                    user_info['balance'] = round(user_data['balance'], 2) if user_data['balance'] else 0.00
+                    min_payment = user_info['rate_cost'] - user_info['balance'] if user_info['rate_cost'] else 0
+                    user_info['min_pay'] = min_payment if min_payment > 0 else 0.00
+                    user_info['pay_day'] = penultimate_date_of_current_month()
+            return user_info
+
+
+async def get_user_data(account):
+    user = {}
+    match len(account):
+        case 4:
+            user = await get_user_data_old(account)
+        case 5:
+            user = await get_user_data_new(account)
+    return user
+
 # print(asyncio.run(get_full_user_data('11529')))
 # print(asyncio.run(get_payments(11816)))
+# print(asyncio.run(get_user_data_old('0010')))

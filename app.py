@@ -3,13 +3,13 @@ import datetime
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.responses import JSONResponse
 from db.app_db import init_db, store_refresh_token, add_user, is_refresh_token_valid
-from db.billing_db import get_full_user_data, get_payments, update_password
+from db.billing_db import get_user_data, get_payments, update_password
 from schemas import User, Token, RefreshTokenRequest, UserData, PaymentsList, PasswordUpdate
 from service import authenticate_user, create_access_token, create_refresh_token, decode_token, get_current_user, \
     validate_password
 
 # Define the FastAPI app
-app = FastAPI(title='VostokTelekom Mobile API')
+app = FastAPI(title='VostokTelekom Mobile API', description='BASE URL >> https://mobile.vt54.ru')
 
 
 # Define the authentication route
@@ -53,7 +53,7 @@ async def refresh_token(request: RefreshTokenRequest):
 # Define the /api/me endpoint
 @app.get("/api/me", response_model=UserData, responses={401: {"description": "Invalid access token"}})
 async def read_current_user(current_user: str = Depends(get_current_user)):
-    user_data = await get_full_user_data(current_user)
+    user_data = await get_user_data(current_user)
     # Here you can fetch additional information about the current user from your database
     return {"username": user_data['full_name'],
             "account": current_user,
