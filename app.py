@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.responses import JSONResponse
 from db.app_db import init_db, store_refresh_token, add_user, is_refresh_token_valid
 from db.billing_db import get_user_data, get_payments, update_password
-from schemas import User, Token, RefreshTokenRequest, UserData, PaymentsList, PasswordUpdate
+from schemas import User, Token, RefreshTokenRequest, UserData, PaymentsList, PasswordUpdate, News
 from service import authenticate_user, create_access_token, create_refresh_token, decode_token, get_current_user, \
     validate_password
 
@@ -77,6 +77,16 @@ async def set_new_password(password: PasswordUpdate = Depends(validate_password)
 async def get_payments_history(current_user: str = Depends(get_current_user)):
     payments_history = await get_payments(current_user)
     return {'payments': payments_history}
+
+
+@app.get("/api/collection-news", response_model=News,
+         responses={401: {"description": "Invalid access token"}})
+async def get_news(current_user: str = Depends(get_current_user)):
+    user = current_user
+    news = [{'article': 'Восток-Телеком объявляет о запуске новой программы лояльности для своих клиентов'},
+            {'article': 'Новый тарифный план, который призван удовлетворить потребности самых требовательных клиентов'}
+            ]
+    return {'news': news}
 
 
 @app.on_event("startup")

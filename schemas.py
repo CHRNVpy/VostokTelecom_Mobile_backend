@@ -45,3 +45,11 @@ class Payment(BaseModel):
 
 class PaymentsList(BaseModel):
     payments: List[Payment]
+
+
+class NewsArticle(BaseModel):
+    article: str
+
+
+class News(BaseModel):
+    news: List[NewsArticle]
