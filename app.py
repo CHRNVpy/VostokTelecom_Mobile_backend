@@ -1,6 +1,7 @@
 import datetime
 
 from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from db.app_db import init_db, store_refresh_token, add_user, is_refresh_token_valid
 from db.billing_db import get_user_data, get_payments, update_password
@@ -10,6 +11,14 @@ from service import authenticate_user, create_access_token, create_refresh_token
 
 # Define the FastAPI app
 app = FastAPI(title='VostokTelekom Mobile API', description='BASE URL >> https://mobile.vt54.ru')
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
+    allow_headers=["*"],
+)
 
 
 # Define the authentication route
