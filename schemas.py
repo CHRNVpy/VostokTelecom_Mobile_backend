@@ -37,14 +37,14 @@ class PasswordUpdate(BaseModel):
     password: str
 
 
-class Payment(BaseModel):
+class HistoryPayment(BaseModel):
     id: int
     date: str
     summ: int
 
 
-class PaymentsList(BaseModel):
-    payments: List[Payment]
+class HistoryPaymentsList(BaseModel):
+    payments: List[HistoryPayment]
 
 
 class NewsArticle(BaseModel):
@@ -53,3 +53,18 @@ class NewsArticle(BaseModel):
 
 class News(BaseModel):
     news: List[NewsArticle]
+
+
+class Payment(BaseModel):
+    orderId: str
+    formUrl: str
+
+
+class PaymentAmount(BaseModel):
+    amount_roubles: int
+
+
+class AutoPayDetails(BaseModel):
+    enabled: bool
+    pay_day: str
+    pay_summ: float

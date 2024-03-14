@@ -1,13 +1,19 @@
 import datetime
+import json
+import uuid
 
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from db.app_db import init_db, store_refresh_token, add_user, is_refresh_token_valid
+
+from acquiring import pay_request, delete_bindings
+from db.app_db import init_db, store_refresh_token, add_user, is_refresh_token_valid, get_autopay, delete_autopay
 from db.billing_db import get_user_data, get_payments, update_password
-from schemas import User, Token, RefreshTokenRequest, UserData, PaymentsList, PasswordUpdate, News
+from schemas import User, Token, RefreshTokenRequest, UserData, HistoryPaymentsList, PasswordUpdate, News, Payment, \
+    PaymentAmount, AutoPayDetails
 from service import authenticate_user, create_access_token, create_refresh_token, decode_token, get_current_user, \
     validate_password
+from tasks import check_payment_status
 
 # Define the FastAPI app
 app = FastAPI(title='VostokTelekom Mobile API', description='BASE URL >> https://mobile.vt54.ru')
@@ -81,7 +87,7 @@ async def set_new_password(password: PasswordUpdate = Depends(validate_password)
     await update_password(current_user, password.password)
 
 
-@app.get("/api/collection-payments", response_model=PaymentsList,
+@app.get("/api/collection-payments", response_model=HistoryPaymentsList,
          responses={401: {"description": "Invalid access token"}})
 async def get_payments_history(current_user: str = Depends(get_current_user)):
     payments_history = await get_payments(current_user)
@@ -96,6 +102,43 @@ async def get_news(current_user: str = Depends(get_current_user)):
             {'article': 'Новый тарифный план, который призван удовлетворить потребности самых требовательных клиентов'}
             ]
     return {'news': news}
+
+
+@app.post("/api/pay", response_model=Payment,
+          responses={401: {"description": "Invalid access token"}})
+async def pay_handler(request: PaymentAmount,
+                      background_tasks: BackgroundTasks, current_user: str = Depends(get_current_user)):
+    order = str(uuid.uuid4())
+    response = await pay_request(request.amount_roubles, order)
+    json_response = json.loads(response)
+    background_tasks.add_task(check_payment_status, json_response['orderId'], current_user)
+    return json_response
+
+
+@app.get("/api/autopay", response_model=AutoPayDetails,
+         responses={401: {"description": "Invalid access token"}})
+async def get_autopay_data(current_user: str = Depends(get_current_user)):
+    data = await get_autopay(current_user)
+    return data
+
+
+@app.post("/api/autopay", response_model=Payment,
+          responses={401: {"description": "Invalid access token"}})
+async def enable_autopay(request: PaymentAmount,
+                         background_tasks: BackgroundTasks, current_user: str = Depends(get_current_user)):
+    order = str(uuid.uuid4())
+    response = await pay_request(request.amount_roubles, order, auto_payment=True, client_id=current_user)
+    json_response = json.loads(response)
+    background_tasks.add_task(check_payment_status, json_response['orderId'], current_user)
+    return json_response
+
+
+@app.patch("/api/autopay", response_model=AutoPayDetails,
+           responses={401: {"description": "Invalid access token"}})
+async def disable_autopay(current_user: str = Depends(get_current_user)):
+    await delete_bindings(current_user)
+    await delete_autopay(current_user)
+    return {'enabled': False, 'pay_day': '', 'pay_summ': 0.0}
 
 
 @app.on_event("startup")
