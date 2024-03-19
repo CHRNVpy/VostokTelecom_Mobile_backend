@@ -14,8 +14,8 @@ async def pay_request(amount_rubles, order_number, auto_payment=False, client_id
         'password': 'vt54_ru*?1',
         'orderNumber': order_number,
         'amount': amount_kopecks,
-        'returnUrl': 'https://example.com',
-        'failUrl': 'https://myip.com',
+        'returnUrl': 'https://localhost:3000/top-up/done',
+        'failUrl': 'https://localhost:3000/top-up/fail',
         'pageView': 'MOBILE'
     }
 
@@ -150,7 +150,7 @@ async def delete_bindings(client_id):
         await asyncio.gather(*tasks)
 
 
-# asyncio.run(pay_request(10, auto_payment=True, client_id=11310))
+# asyncio.run(pay_request(1010, str(uuid.uuid4())))
 # asyncio.run(get_status_payment('040dfa5c-79d2-7b17-99c3-a1390206770f'))
 # asyncio.run(autopay_request(order_id='04048abf-ae22-7016-822a-44400206770f',
 #                             binding_id='7ab80967-6178-7829-8f31-616a0206770f',

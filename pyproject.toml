@@ -6,7 +6,7 @@ authors = ["Your Name <you@example.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.10"
 fastapi = "^0.110.0"
 uvicorn = "^0.27.1"
 python-jose = "^3.3.0"
@@ -15,6 +15,7 @@ aiosqlite = "^0.20.0"
 aiomysql = "^0.2.0"
 python-dotenv = "^1.0.1"
 aiohttp = "^3.9.3"
+gunicorn = "^21.2.0"
 
 
 [build-system]
