@@ -1,17 +1,24 @@
 import asyncio
 import json
+import os
 import time
 import uuid
 
 import aiohttp
+from dotenv import load_dotenv
+
+load_dotenv()
+
+USER = os.getenv('BANK_USER')
+PASSWORD = os.getenv('BANK_PASS')
 
 
 async def pay_request(amount_rubles, order_number, auto_payment=False, client_id=None):
     amount_kopecks = amount_rubles * 100
     url = 'https://alfa.rbsuat.com/payment/rest/register.do'
     params = {
-        'userName': 'vt54_ru-api',
-        'password': 'vt54_ru*?1',
+        'userName': USER,
+        'password': PASSWORD,
         'orderNumber': order_number,
         'amount': amount_kopecks,
         'returnUrl': 'http://localhost:3000/top-up/done',
@@ -33,8 +40,8 @@ async def pay_request(amount_rubles, order_number, auto_payment=False, client_id
 async def autopay_request(order_id, binding_id, client_ip):
     url = 'https://alfa.rbsuat.com/payment/rest/paymentOrderBinding.do'
     params = {
-        'userName': 'vt54_ru-api',
-        'password': 'vt54_ru*?1',
+        'userName': USER,
+        'password': PASSWORD,
         'mdOrder': order_id,
         'bindingId': binding_id,
         'ip': client_ip,
@@ -53,8 +60,8 @@ async def reccurent_payment(binding_id, amount_rubles):
     amount_kopecks = amount_rubles * 100
     url = 'https://alfa.rbsuat.com/payment/rest/recurrentPayment.do'
     params = {
-        'userName': 'vt54_ru-api',
-        'password': 'vt54_ru*?1',
+        'userName': USER,
+        'password': PASSWORD,
         'orderNumber': str(uuid.uuid4()),
         'bindingId': binding_id,
         'amount': amount_kopecks
@@ -69,9 +76,7 @@ async def reccurent_payment(binding_id, amount_rubles):
 
 async def autopay_confirm():
     url = 'https://alfa.rbsuat.com/payment/rest/finish3ds.do?lang=ru'
-    params = {
-        'PaRes': 'eJxVUl1TwjAQ/CtM30vSNLSFOcKg6FhnKIziqI8hPaUoAUIqyK834UP07XZzt3e3F+jtFp+NLzSbaqm7QdSkQQO1WpaVfu8GT5PbMAt6AiYzgzh4RFUbFDDEzUa+Y6Mqu0GbYSbTMg0Vm05DLlMeSpph2M6Qx5S1mJJvgYBx/wHXAk6NhOvTZEDO0CkaNZPaCpBqfZUXosWzJI2BnCAs0OQDEbGYt5IkTVocyJECLRcovqxnDiGoZa2t+RYJd/VnALX5FDNrVx1Ctttt0xc0TQ3E80Au/ce1jzZOZ1eVopjnrJgPt8X+Jh4OPnixz6PR4HU/nKguEJ8BpbQoGGWcxjRrUN6Jkw5LgBx4kAs/gIgopW6ZI4CV79H/+/KXAWeycTc4b3BGgLvVUqPLcM79xkAuE1/fef+Udbaotr2P13z89Iyjm7p/r19KPU9objEtvKuHJK9YOXMYj46SHgDxMuR0MHK6tYv+/YEfZL64ZA==',
-    }
+
     headers = {'accept': '*/*'}
 
     async with aiohttp.ClientSession() as session:
@@ -83,8 +88,8 @@ async def autopay_confirm():
 async def get_status_payment(order_id):
     url = 'https://alfa.rbsuat.com/payment/rest/getOrderStatus.do'
     params = {
-        'userName': 'vt54_ru-api',
-        'password': 'vt54_ru*?1',
+        'userName': USER,
+        'password': PASSWORD,
         'orderId': order_id
     }
     headers = {'accept': '*/*'}
@@ -99,8 +104,8 @@ async def get_status_payment(order_id):
 async def get_bindings(client_id):
     url = 'https://alfa.rbsuat.com/payment/rest/getBindings.do'
     params = {
-        'userName': 'vt54_ru-api',
-        'password': 'vt54_ru*?1',
+        'userName': USER,
+        'password': PASSWORD,
         'clientId': client_id
     }
     headers = {'accept': '*/*'}
@@ -131,8 +136,8 @@ async def get_bindings(client_id):
 async def delete_binding(session, binding_id):
     url = 'https://alfa.rbsuat.com/payment/rest/unBindCard.do'
     params = {
-        'userName': 'vt54_ru-api',
-        'password': 'vt54_ru*?1',
+        'userName': USER,
+        'password': PASSWORD,
         'bindingId': binding_id
     }
     headers = {'accept': '*/*'}
