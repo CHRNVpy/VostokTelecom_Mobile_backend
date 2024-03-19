@@ -14,8 +14,8 @@ async def pay_request(amount_rubles, order_number, auto_payment=False, client_id
         'password': 'vt54_ru*?1',
         'orderNumber': order_number,
         'amount': amount_kopecks,
-        'returnUrl': 'https://localhost:3000/top-up/done',
-        'failUrl': 'https://localhost:3000/top-up/fail',
+        'returnUrl': 'http://localhost:3000/top-up/done',
+        'failUrl': 'http://localhost:3000/top-up/fail',
         'pageView': 'MOBILE'
     }
 
