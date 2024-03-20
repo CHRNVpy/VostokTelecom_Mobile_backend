@@ -249,7 +249,13 @@ async def get_user_data_new(account):
     LEFT JOIN 
         tariff_plan ON contract_tariff.tpid = tariff_plan.id
     LEFT JOIN
-        contract_balance ON contract_balance.cid = contract.id
+    (SELECT cid, MAX(yy) AS max_year, MAX(mm) AS max_month
+     FROM contract_balance
+     GROUP BY cid) AS max_balance ON contract.id = max_balance.cid
+	LEFT JOIN
+	    contract_balance ON contract.id = contract_balance.cid 
+	                     AND contract_balance.yy = max_balance.max_year 
+	                     AND contract_balance.mm = max_balance.max_month
     WHERE 
         contract.title = %s
     ORDER BY 
@@ -329,7 +335,6 @@ async def get_user_data(account):
         case 5:
             user = await get_user_data_new(account)
     return user
-
 
 # async def update_balance_old():
 
