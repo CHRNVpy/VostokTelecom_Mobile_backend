@@ -80,7 +80,7 @@ async def authenticate_user(login: str, password: str):
 
 
 # Function to get current user from access token
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer)):
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
     token = credentials.credentials
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Bearer token is empty")
