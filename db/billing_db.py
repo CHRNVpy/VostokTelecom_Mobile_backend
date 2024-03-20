@@ -2,6 +2,7 @@ import calendar
 import json
 import os
 from datetime import datetime, timedelta
+from pprint import pprint
 
 import aiomysql
 import asyncio
@@ -332,6 +333,6 @@ async def get_user_data(account):
 
 # async def update_balance_old():
 
-# print(asyncio.run(get_full_user_data('11529')))
+# pprint(asyncio.run(get_user_data('11310')))
 # print(asyncio.run(get_payments(11816)))
 # print(asyncio.run(get_user_data_old('0010')))

@@ -20,8 +20,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 10
 REFRESH_TOKEN_EXPIRE_YEARS = 1
 
 # Define a security scheme for bearer tokens
-# bearer_scheme = HTTPBearer()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+bearer_scheme = HTTPBearer()
+# oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # Create a password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -80,8 +80,8 @@ async def authenticate_user(login: str, password: str):
 
 
 # Function to get current user from access token
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(oauth2_scheme)):
-    token = credentials # .credentials
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer)):
+    token = credentials.credentials
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Bearer token is empty")
     payload = decode_token(token)
