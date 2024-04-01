@@ -111,7 +111,7 @@ async def pay_handler(request: PaymentAmount,
     order = str(uuid.uuid4())
     response = await pay_request(request.amount_roubles, order)
     json_response = json.loads(response)
-    background_tasks.add_task(check_payment_status, json_response['orderId'], current_user)
+    background_tasks.add_task(check_payment_status, json_response['orderId'], current_user, autopay=False)
     return json_response
 
 
@@ -129,7 +129,7 @@ async def enable_autopay(request: PaymentAmount,
     order = str(uuid.uuid4())
     response = await pay_request(request.amount_roubles, order, auto_payment=True, client_id=current_user)
     json_response = json.loads(response)
-    background_tasks.add_task(check_payment_status, json_response['orderId'], current_user)
+    background_tasks.add_task(check_payment_status, json_response['orderId'], current_user, autopay=True)
     return json_response
 
 

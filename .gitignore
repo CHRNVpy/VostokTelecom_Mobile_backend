@@ -1,0 +1,6 @@
+.env
+.idea/
+__pycache__/
+db/__pycache__/
+poetry.lock
+tokens.db

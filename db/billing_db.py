@@ -336,8 +336,48 @@ async def get_user_data(account):
             user = await get_user_data_new(account)
     return user
 
-# async def update_balance_old():
 
+async def update_user_balance_old(account: str | int, payment_amount: float, order_id: str | int) -> None:
+    update_balance_query = """
+    UPDATE account a
+    SET balance = (
+      SELECT a.balance + %s
+      FROM (SELECT balance FROM account WHERE login = %s) b
+    )
+    WHERE a.login = %s;
+    """
+
+    add_payment_query = """
+    INSERT IGNORE INTO deposit
+    (account_id, deposit_type_id, sum, date_add, added_by, ext_id, comment)
+    VALUES (
+        (SELECT id FROM account WHERE login = %s),
+        -9,
+        %s,
+        %s,
+        -1,
+        %s,
+        %s
+    );
+    """
+
+    async with aiomysql.create_pool(**old_db_config) as pool:
+        async with pool.acquire() as conn:
+            try:
+                await conn.begin()  # Start a transaction
+                async with conn.cursor(aiomysql.DictCursor) as cur:
+                    await cur.execute(update_balance_query, (payment_amount, account, account))
+                    await cur.execute(add_payment_query, (account, payment_amount, datetime.now().timestamp(),
+                                                          order_id, 'mobile app payment'))
+                await conn.commit()  # Commit the transaction
+            except Exception as e:
+                await conn.rollback()  # Rollback the transaction on error
+                raise e
+
+
+# async def update_balance_old():
 # pprint(asyncio.run(get_user_data('11310')))
 # print(asyncio.run(get_payments(11816)))
 # print(asyncio.run(get_user_data_old('0010')))
+# asyncio.run(update_user_balance_old('0000', 100.00))
+# asyncio.run(update_user_balance_old('0000', 100.00, '111-222-333-444-777'))
