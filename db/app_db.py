@@ -6,7 +6,7 @@ import aiosqlite
 
 from db.billing_db import get_user_data
 
-DB_NAME = "tokens.db"
+DB_NAME = "/home/chrnv/PycharmProjects/VostokTelecom_Mobile_backend/vt_mobile_app.db"
 
 
 def penultimate_date_of_current_month():
@@ -36,6 +36,13 @@ async def init_db():
             "bindingId TEXT, "
             "autopay_date DATETIME, "
             "FOREIGN KEY(user) REFERENCES refresh_tokens(user))"
+        )
+
+        await db.execute(
+            "CREATE TABLE IF NOT EXISTS rooms ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "created_by TEXT, "
+            "FOREIGN KEY(created_by) REFERENCES refresh_tokens(user))"
         )
         await db.commit()
 
@@ -90,11 +97,25 @@ async def get_autopay(user_id):
                         "pay_summ": 0.0}
 
 
-async def delete_autopay(user_id):
+async def delete_autopay(user_id: str):
     async with aiosqlite.connect(DB_NAME) as db:
         await db.execute("DELETE FROM autopayments WHERE user = ?",
                          (user_id,))
         await db.commit()
 
+
+# async def add_room(user: str):
+#     async with aiosqlite.connect(DB_NAME) as db:
+#         await db.execute("INSERT OR IGNORE INTO rooms (created_by) VALUES (?)",
+#                          (user, ))
+#         await db.commit()
+#
+#
+# async def get_rooms():
+#     async with aiosqlite.connect(DB_NAME) as db:
+#         async with await db.execute("SELECT * FROM rooms") as cursor:
+#             return await cursor.fetchall()
+
+
 # print(asyncio.run(get_autopay('11310')))
-# asyncio.run(delete_autopay('11310'))
+# print(asyncio.run(get_rooms()))

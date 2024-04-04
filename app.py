@@ -10,10 +10,10 @@ from acquiring import pay_request, delete_bindings
 from db.app_db import init_db, store_refresh_token, add_user, is_refresh_token_valid, get_autopay, delete_autopay
 from db.billing_db import get_user_data, get_payments, update_password
 from schemas import User, Token, RefreshTokenRequest, UserData, HistoryPaymentsList, PasswordUpdate, News, Payment, \
-    PaymentAmount, AutoPayDetails
+    PaymentAmount, AutoPayDetails, Accident
 from service import authenticate_user, create_access_token, create_refresh_token, decode_token, get_current_user, \
     validate_password
-from tasks import check_payment_status
+from tasks import check_payment_status, get_alert
 
 # Define the FastAPI app
 app = FastAPI(title='VostokTelekom Mobile API', description='BASE URL >> https://mobile.vt54.ru')
@@ -139,6 +139,14 @@ async def disable_autopay(current_user: str = Depends(get_current_user)):
     await delete_bindings(current_user)
     await delete_autopay(current_user)
     return {'enabled': False, 'pay_day': '', 'pay_summ': 0.0}
+
+
+@app.get("/api/accident", response_model=Accident,
+         responses={401: {"description": "Invalid access token"}})
+async def get_accident(current_user: str = Depends(get_current_user)):
+    alert_status = await get_alert(current_user)
+    return alert_status
+
 
 
 @app.on_event("startup")

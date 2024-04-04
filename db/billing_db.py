@@ -191,17 +191,39 @@ async def update_password(account, new_password):
                 await conn.commit()
 
 
-async def get_all_alerted_accounts(zone_id):
+async def get_user_group_id_old(account: str | int) -> int:
     # SQL query
-    sql = """SELECT title FROM contract WHERE gr = %s"""
+    sql = """SELECT acc_group_id FROM account WHERE login = %s"""
+
+    async with aiomysql.create_pool(**old_db_config) as pool:
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, (account,))
+                result = await cur.fetchone()
+
+    return result[0]
+
+
+async def get_user_group_id_new(account: str | int) -> int:
+    # SQL query
+    sql = """SELECT gr FROM contract WHERE title = %s"""
 
     async with aiomysql.create_pool(**db_config) as pool:
         async with pool.acquire() as conn:
             async with conn.cursor() as cur:
-                await cur.execute(sql, (zone_id,))
-                result = await cur.fetchall()
+                await cur.execute(sql, (account,))
+                result = await cur.fetchone()
 
-    return [int(res[0]) for res in result if res[0].isdigit()]
+    return result[0]
+
+
+async def get_user_group_id(account: str | int) -> int:
+    match len(account):
+        case 4:
+            return await get_user_group_id_old(account)
+        case 5:
+            return await get_user_group_id_new(account)
+
 
 
 async def get_user_data_new(account):
@@ -252,10 +274,10 @@ async def get_user_data_new(account):
     (SELECT cid, MAX(yy) AS max_year, MAX(mm) AS max_month
      FROM contract_balance
      GROUP BY cid) AS max_balance ON contract.id = max_balance.cid
-	LEFT JOIN
-	    contract_balance ON contract.id = contract_balance.cid 
-	                     AND contract_balance.yy = max_balance.max_year 
-	                     AND contract_balance.mm = max_balance.max_month
+    LEFT JOIN
+        contract_balance ON contract.id = contract_balance.cid 
+                         AND contract_balance.yy = max_balance.max_year 
+                         AND contract_balance.mm = max_balance.max_month
     WHERE 
         contract.title = %s
     ORDER BY 
@@ -338,38 +360,32 @@ async def get_user_data(account):
 
 
 async def update_user_balance_old(account: str | int, payment_amount: float, order_id: str | int) -> None:
-    update_balance_query = """
-    UPDATE account a
-    SET balance = (
-      SELECT a.balance + %s
-      FROM (SELECT balance FROM account WHERE login = %s) b
-    )
-    WHERE a.login = %s;
-    """
+    transaction_query = """
+    START TRANSACTION;
+        UPDATE account
+        SET balance = balance + %s
+        WHERE login = %s;
 
-    add_payment_query = """
-    INSERT IGNORE INTO deposit
-    (account_id, deposit_type_id, sum, date_add, added_by, ext_id, comment)
-    VALUES (
-        (SELECT id FROM account WHERE login = %s),
-        -9,
-        %s,
-        %s,
-        -1,
-        %s,
-        %s
-    );
+        INSERT INTO deposit
+        (account_id, deposit_type_id, sum, date_add, added_by, ext_id, comment)
+        VALUES (
+            (SELECT id FROM account WHERE login = %s),
+            -9,
+            %s,
+            %s,
+            -1,
+            %s,
+            %s
+        );
     """
 
     async with aiomysql.create_pool(**old_db_config) as pool:
         async with pool.acquire() as conn:
             try:
-                await conn.begin()  # Start a transaction
                 async with conn.cursor(aiomysql.DictCursor) as cur:
-                    await cur.execute(update_balance_query, (payment_amount, account, account))
-                    await cur.execute(add_payment_query, (account, payment_amount, datetime.now().timestamp(),
-                                                          order_id, 'mobile app payment'))
-                await conn.commit()  # Commit the transaction
+                    await cur.execute(transaction_query, (
+                        payment_amount, account, account, payment_amount, datetime.now().timestamp(), order_id,
+                        'mobile app payment'))
             except Exception as e:
                 await conn.rollback()  # Rollback the transaction on error
                 raise e
@@ -380,4 +396,5 @@ async def update_user_balance_old(account: str | int, payment_amount: float, ord
 # print(asyncio.run(get_payments(11816)))
 # print(asyncio.run(get_user_data_old('0010')))
 # asyncio.run(update_user_balance_old('0000', 100.00))
-# asyncio.run(update_user_balance_old('0000', 100.00, '111-222-333-444-777'))
+# asyncio.run(update_user_balance_old('0000', 100.00, '111-222-333-444-999'))
+# print(asyncio.run(get_user_group_id('11310')))

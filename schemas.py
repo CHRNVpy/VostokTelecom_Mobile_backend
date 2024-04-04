@@ -68,3 +68,7 @@ class AutoPayDetails(BaseModel):
     enabled: bool
     pay_day: str
     pay_summ: float
+
+
+class Accident(BaseModel):
+    accident: bool

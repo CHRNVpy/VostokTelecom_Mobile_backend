@@ -1,20 +1,23 @@
 import asyncio
 import datetime
 import json
+import os
 import time
 
 import aiohttp
 
 from acquiring import get_status_payment
 from db.app_db import set_autopay
-from db.billing_db import update_user_balance_old
+from db.billing_db import update_user_balance_old, get_user_group_id
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 async def check_payment_status(order_id: str, user_id=None, autopay=False) -> None:
     while True:
         json_status = await get_status_payment(order_id)
         status = json.loads(json_status)
-        print(status)
         if status.get('OrderStatus'):
             if status['OrderStatus'] == 2:
                 # print('Проведена полная авторизация суммы заказа')
@@ -29,7 +32,8 @@ async def check_payment_status(order_id: str, user_id=None, autopay=False) -> No
                         await update_user_balance_old(user_id, payment_summ, order_id)
                     case 5:
                         async with aiohttp.ClientSession() as session:
-                            await session.get(update_balance_url)
+                            response = await session.get(update_balance_url)
+                            print(await response.text())
                 break
             elif status['OrderStatus'] in [3, 6]:
                 # print('Авторизация отклонена')
@@ -39,26 +43,50 @@ async def check_payment_status(order_id: str, user_id=None, autopay=False) -> No
                 await asyncio.sleep(5)
 
 
-async def zabbix():
+async def get_alert(account: str):
+    user_group_id = await get_user_group_id(account)
     url = 'https://zabbix2.vt54.ru/zabbix/api_jsonrpc.php'
-    data = {
+    host_group_data = {
         "jsonrpc": "2.0",
-        "method": "host.get",
+        "method": "hostgroup.get",
         "params": {
+            "output": ["groupid", "name"],
             "filter": {
-                "host": [
-                    "Zabbix server",
-                    "Linux server"
+                "name": [
+                    f"felix-abons-{user_group_id}",
                 ]
             }
         },
-        "auth": "09987a96ea1812b88d3bd447953425eca86421838db076b236b03333ddb27b73",
+        "auth": os.getenv('zabbix_token'),
+        "id": 2
+    }
+
+    async def zabbix_request(url, data):
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, json=data) as response:
+                response_json = await response.json()
+                return response_json
+
+    group_id_response = await zabbix_request(url, host_group_data)
+    group_id = group_id_response['result'][0]['groupid'] if group_id_response['result'] else 0
+
+    status_data = {
+        "jsonrpc": "2.0",
+        "method": "host.get",
+        "params": {
+            "output": ["name", "status"],
+            "groupids": [int(group_id)]
+        },
+        "auth": os.getenv('zabbix_token'),
         "id": 1
     }
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, json=data) as response:
-            response_json = await response.json()
-            print(response_json)
+
+    status_response = await zabbix_request(url, status_data)
+    statuses = [int(status['status']) for status in status_response['result']]
+    if 1 in statuses:
+        return {"accident": True}
+    else:
+        return {"accident": False}
 
 
-# asyncio.run(zabbix())
+# print(asyncio.run(get_alert('1104')))
