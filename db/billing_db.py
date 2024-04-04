@@ -3,6 +3,7 @@ import json
 import os
 from datetime import datetime, timedelta
 from pprint import pprint
+from typing import Dict, Any, List
 
 import aiomysql
 import asyncio
@@ -47,6 +48,16 @@ def penultimate_date_of_current_month():
     penultimate_date = today.replace(day=last_day) - timedelta(days=1)
     formatted_date = penultimate_date.strftime("%d.%m.%Y")
     return formatted_date
+
+
+def convert_to_dict(tuples: tuple[tuple]) -> dict:
+    result = {}
+    for key, value in tuples:
+        if f'felix-abons-{key}' in result:
+            result[f'felix-abons-{key}'].append(value)
+        else:
+            result[f'felix-abons-{key}'] = [value]
+    return result
 
 
 async def get_user_new(login: str):
@@ -191,39 +202,36 @@ async def update_password(account, new_password):
                 await conn.commit()
 
 
-async def get_user_group_id_old(account: str | int) -> int:
+async def get_user_group_id_old(accounts: list) -> dict[Any, list[Any]]:
     # SQL query
-    sql = """SELECT acc_group_id FROM account WHERE login = %s"""
+    sql = """SELECT acc_group_id, login FROM account WHERE login IN %s"""
 
     async with aiomysql.create_pool(**old_db_config) as pool:
         async with pool.acquire() as conn:
             async with conn.cursor() as cur:
-                await cur.execute(sql, (account,))
-                result = await cur.fetchone()
+                await cur.execute(sql, (accounts,))
+                result = await cur.fetchall()
+    return convert_to_dict(result)
 
-    return result[0]
 
-
-async def get_user_group_id_new(account: str | int) -> int:
+async def get_user_group_id_new(accounts: list) -> dict[Any, list[Any]]:
     # SQL query
-    sql = """SELECT gr FROM contract WHERE title = %s"""
+    sql = """SELECT gr, title FROM contract WHERE title IN %s"""
 
     async with aiomysql.create_pool(**db_config) as pool:
         async with pool.acquire() as conn:
             async with conn.cursor() as cur:
-                await cur.execute(sql, (account,))
-                result = await cur.fetchone()
+                await cur.execute(sql, (accounts,))
+                result = await cur.fetchall()
+    return convert_to_dict(result)
 
-    return result[0]
 
-
-async def get_user_group_id(account: str | int) -> int:
-    match len(account):
-        case 4:
-            return await get_user_group_id_old(account)
-        case 5:
-            return await get_user_group_id_new(account)
-
+async def get_user_group_ids(accounts: dict) -> dict[Any, list[Any]]:
+        old_groups = await get_user_group_id_old(accounts['old'])
+        new_groups = await get_user_group_id_new(accounts['new'])
+        merged_dict = old_groups.copy()  # create a copy to keep the original dict1 intact
+        merged_dict.update(new_groups)
+        return merged_dict
 
 
 async def get_user_data_new(account):
@@ -397,4 +405,4 @@ async def update_user_balance_old(account: str | int, payment_amount: float, ord
 # print(asyncio.run(get_user_data_old('0010')))
 # asyncio.run(update_user_balance_old('0000', 100.00))
 # asyncio.run(update_user_balance_old('0000', 100.00, '111-222-333-444-999'))
-# print(asyncio.run(get_user_group_id('11310')))
+# print(asyncio.run(get_user_group_id_old(['0000', '0144', '1104', '2029', '8336'])))

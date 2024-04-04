@@ -3,12 +3,13 @@ import datetime
 import json
 import os
 import time
+from pprint import pprint
 
 import aiohttp
 
 from acquiring import get_status_payment
-from db.app_db import set_autopay
-from db.billing_db import update_user_balance_old, get_user_group_id
+from db.app_db import set_autopay, get_accounts, set_accident_status
+from db.billing_db import update_user_balance_old, get_user_group_ids
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -43,8 +44,10 @@ async def check_payment_status(order_id: str, user_id=None, autopay=False) -> No
                 await asyncio.sleep(5)
 
 
-async def get_alert(account: str):
-    user_group_id = await get_user_group_id(account)
+async def check_alerts():
+    # print("Checking alerts enabled")
+    accounts = await get_accounts()
+    groups = await get_user_group_ids(accounts)
     url = 'https://zabbix2.vt54.ru/zabbix/api_jsonrpc.php'
     host_group_data = {
         "jsonrpc": "2.0",
@@ -52,9 +55,7 @@ async def get_alert(account: str):
         "params": {
             "output": ["groupid", "name"],
             "filter": {
-                "name": [
-                    f"felix-abons-{user_group_id}",
-                ]
+                "name": list(groups.keys())
             }
         },
         "auth": os.getenv('zabbix_token'),
@@ -68,25 +69,26 @@ async def get_alert(account: str):
                 return response_json
 
     group_id_response = await zabbix_request(url, host_group_data)
-    group_id = group_id_response['result'][0]['groupid'] if group_id_response['result'] else 0
+    host_groups_ids = [int(item['groupid']) for item in group_id_response['result'] if group_id_response['result']]
 
     status_data = {
         "jsonrpc": "2.0",
         "method": "host.get",
         "params": {
             "output": ["name", "status"],
-            "groupids": [int(group_id)]
+            "selectHostGroups": "extend",
+            "groupids": host_groups_ids
         },
         "auth": os.getenv('zabbix_token'),
         "id": 1
     }
 
     status_response = await zabbix_request(url, status_data)
-    statuses = [int(status['status']) for status in status_response['result']]
-    if 1 in statuses:
-        return {"accident": True}
-    else:
-        return {"accident": False}
+    affected_hostgroups = [item for item in status_response['result'] if int(item['status'])]
+    felix_names = [group['name'] for d in affected_hostgroups for group in d['hostgroups']
+                   if group['name'].startswith('felix')]
+    account_to_notify = [account for name in felix_names for account in groups.get(name, [])]
+    await set_accident_status(account_to_notify)
 
 
-# print(asyncio.run(get_alert('1104')))
+# asyncio.run(check_alerts())

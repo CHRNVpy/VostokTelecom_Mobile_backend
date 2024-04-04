@@ -2,21 +2,24 @@ import datetime
 import json
 import uuid
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, HTTPException, Depends, status, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from acquiring import pay_request, delete_bindings
-from db.app_db import init_db, store_refresh_token, add_user, is_refresh_token_valid, get_autopay, delete_autopay
+from db.app_db import init_db, store_refresh_token, add_user, is_refresh_token_valid, get_autopay, delete_autopay, \
+    get_accident_status
 from db.billing_db import get_user_data, get_payments, update_password
 from schemas import User, Token, RefreshTokenRequest, UserData, HistoryPaymentsList, PasswordUpdate, News, Payment, \
     PaymentAmount, AutoPayDetails, Accident
 from service import authenticate_user, create_access_token, create_refresh_token, decode_token, get_current_user, \
     validate_password
-from tasks import check_payment_status, get_alert
+from tasks import check_payment_status, check_alerts
 
 # Define the FastAPI app
 app = FastAPI(title='VostokTelekom Mobile API', description='BASE URL >> https://mobile.vt54.ru')
+scheduler = AsyncIOScheduler()
 
 app.add_middleware(
     CORSMiddleware,
@@ -142,13 +145,21 @@ async def disable_autopay(current_user: str = Depends(get_current_user)):
 
 
 @app.get("/api/accident", response_model=Accident,
-         responses={401: {"description": "Invalid access token"}})
+         responses={401: {"description": "Invalid access token"}, 500: {"description": "Internal server error"}})
 async def get_accident(current_user: str = Depends(get_current_user)):
-    alert_status = await get_alert(current_user)
-    return alert_status
-
+    alert_status = await get_accident_status(current_user)
+    return {"accident": alert_status}
 
 
 @app.on_event("startup")
 async def startup_event():
     await init_db()
+    scheduler.start()
+    scheduler.add_job(check_alerts, trigger='interval', minutes=1, max_instances=1)
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    scheduler.remove_all_jobs()
+    scheduler.shutdown()
+

@@ -39,10 +39,11 @@ async def init_db():
         )
 
         await db.execute(
-            "CREATE TABLE IF NOT EXISTS rooms ("
+            "CREATE TABLE IF NOT EXISTS alerts ("
             "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-            "created_by TEXT, "
-            "FOREIGN KEY(created_by) REFERENCES refresh_tokens(user))"
+            "user TEXT, "
+            "status INTEGER, "
+            "FOREIGN KEY(user) REFERENCES refresh_tokens(user))"
         )
         await db.commit()
 
@@ -104,6 +105,40 @@ async def delete_autopay(user_id: str):
         await db.commit()
 
 
+async def get_accounts():
+    async with aiosqlite.connect(DB_NAME) as db:
+        async with db.execute("SELECT user FROM refresh_tokens") as cursor:
+            users = await cursor.fetchall()
+            old_accounts = [user[0] for user in users if len(user[0]) == 4]
+            new_accounts = [user[0] for user in users if len(user[0]) == 5]
+            return {"old": old_accounts, "new": new_accounts}
+
+
+async def get_accident_status(account: str):
+    async with aiosqlite.connect(DB_NAME) as db:
+        async with db.execute("SELECT status FROM alerts WHERE user = ?",
+                         (account, )) as cursor:
+            status = await cursor.fetchone()
+            if status is not None and status[0]:
+                return True
+            else:
+                return False
+
+
+async def set_accident_status(accounts: list) -> None:
+    async with aiosqlite.connect(DB_NAME) as db:
+        await db.execute("UPDATE alerts SET status = ?", (0, ))
+        for account in accounts:
+            current_status = await get_accident_status(account)
+            if not current_status:
+                await db.execute("INSERT OR IGNORE INTO alerts (user, status) VALUES (?, ?)",
+                                 (account, 1))
+            else:
+                await db.execute("UPDATE alerts SET status = ? WHERE user = ?",
+                                 (1, account))
+        await db.commit()
+
+
 # async def add_room(user: str):
 #     async with aiosqlite.connect(DB_NAME) as db:
 #         await db.execute("INSERT OR IGNORE INTO rooms (created_by) VALUES (?)",
@@ -118,4 +153,4 @@ async def delete_autopay(user_id: str):
 
 
 # print(asyncio.run(get_autopay('11310')))
-# print(asyncio.run(get_rooms()))
+# print(asyncio.run(get_accounts()))
