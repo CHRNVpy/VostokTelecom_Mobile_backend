@@ -15,7 +15,7 @@ from schemas import User, Token, RefreshTokenRequest, UserData, HistoryPaymentsL
     PaymentAmount, AutoPayDetails, Accident
 from service import authenticate_user, create_access_token, create_refresh_token, decode_token, get_current_user, \
     validate_password
-from tasks import check_payment_status, check_alerts
+from tasks import check_payment_status, check_alerts, init_autopay
 
 # Define the FastAPI app
 app = FastAPI(title='VostokTelekom Mobile API', description='BASE URL >> https://mobile.vt54.ru')
@@ -111,8 +111,7 @@ async def get_news(current_user: str = Depends(get_current_user)):
           responses={401: {"description": "Invalid access token"}})
 async def pay_handler(request: PaymentAmount,
                       background_tasks: BackgroundTasks, current_user: str = Depends(get_current_user)):
-    order = str(uuid.uuid4())
-    response = await pay_request(request.amount_roubles, order)
+    response = await pay_request(request.amount_roubles)
     json_response = json.loads(response)
     background_tasks.add_task(check_payment_status, json_response['orderId'], current_user, autopay=False)
     return json_response
@@ -129,11 +128,9 @@ async def get_autopay_data(current_user: str = Depends(get_current_user)):
           responses={401: {"description": "Invalid access token"}})
 async def enable_autopay(request: PaymentAmount,
                          background_tasks: BackgroundTasks, current_user: str = Depends(get_current_user)):
-    order = str(uuid.uuid4())
-    response = await pay_request(request.amount_roubles, order, auto_payment=True, client_id=current_user)
-    json_response = json.loads(response)
-    background_tasks.add_task(check_payment_status, json_response['orderId'], current_user, autopay=True)
-    return json_response
+    response = await pay_request(request.amount_roubles, auto_payment=True, client_id=current_user)
+    background_tasks.add_task(check_payment_status, response['orderId'], current_user, autopay=True)
+    return response
 
 
 @app.patch("/api/autopay", response_model=AutoPayDetails,
@@ -155,7 +152,8 @@ async def get_accident(current_user: str = Depends(get_current_user)):
 async def startup_event():
     await init_db()
     scheduler.start()
-    scheduler.add_job(check_alerts, trigger='interval', minutes=1, max_instances=1)
+    scheduler.add_job(check_alerts, trigger='interval', hours=1, max_instances=1)
+    # scheduler.add_job(init_autopay, trigger='interval', days=1, max_instances=1)
 
 
 @app.on_event("shutdown")

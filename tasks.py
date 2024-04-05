@@ -1,4 +1,5 @@
 import asyncio
+import calendar
 import datetime
 import json
 import os
@@ -7,8 +8,8 @@ from pprint import pprint
 
 import aiohttp
 
-from acquiring import get_status_payment
-from db.app_db import set_autopay, get_accounts, set_accident_status
+from acquiring import get_status_payment, pay_request, autopay_request
+from db.app_db import set_autopay, get_accounts, set_accident_status, get_autopay_users
 from db.billing_db import update_user_balance_old, get_user_group_ids
 from dotenv import load_dotenv
 
@@ -22,9 +23,9 @@ async def check_payment_status(order_id: str, user_id=None, autopay=False) -> No
         if status.get('OrderStatus'):
             if status['OrderStatus'] == 2:
                 # print('Проведена полная авторизация суммы заказа')
-                if autopay:
-                    await set_autopay(user_id, status['bindingId'])
                 payment_summ = int(status['Amount']) / 100
+                if autopay:
+                    await set_autopay(user_id, status['bindingId'], payment_summ, status['Ip'])
                 txn_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 update_balance_url = (f'https://billing-2.vt54.ru/alfa-pay/1?command=pay&txn_id={order_id}&'
                                       f'txn_date={txn_date}&sum={float(payment_summ)}&account={user_id}')
@@ -33,8 +34,8 @@ async def check_payment_status(order_id: str, user_id=None, autopay=False) -> No
                         await update_user_balance_old(user_id, payment_summ, order_id)
                     case 5:
                         async with aiohttp.ClientSession() as session:
-                            response = await session.get(update_balance_url)
-                            print(await response.text())
+                            await session.get(update_balance_url)
+                            # print(await response.text())
                 break
             elif status['OrderStatus'] in [3, 6]:
                 # print('Авторизация отклонена')
@@ -42,6 +43,22 @@ async def check_payment_status(order_id: str, user_id=None, autopay=False) -> No
             else:
                 # print(json.loads(status)['OrderStatus'])
                 await asyncio.sleep(5)
+
+
+async def init_autopay():
+    today = datetime.datetime.now()
+    _, last_day = calendar.monthrange(today.year, today.month)
+    penultimate_date = today.replace(day=last_day) - datetime.timedelta(days=1)
+    if today != penultimate_date:
+        users = await get_autopay_users()
+        for user in users:
+            user_id = user[1]
+            binding_id = user[2]
+            payment_amount = user[3]
+            ip = user[4]
+            pay_response = await pay_request(amount_rubles=payment_amount)
+            await autopay_request(pay_response['orderId'], binding_id, ip)
+            await set_autopay(user_id, binding_id, payment_amount, ip)
 
 
 async def check_alerts():

@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 
 import aiosqlite
 
-from db.billing_db import get_user_data
 
 DB_NAME = "/home/chrnv/PycharmProjects/VostokTelecom_Mobile_backend/vt_mobile_app.db"
 
@@ -34,7 +33,9 @@ async def init_db():
             "id INTEGER PRIMARY KEY AUTOINCREMENT, "
             "user TEXT UNIQUE, "
             "bindingId TEXT, "
-            "autopay_date DATETIME, "
+            "payment_summ INTEGER, "
+            "ip TEXT, "
+            "updated DATETIME, "
             "FOREIGN KEY(user) REFERENCES refresh_tokens(user))"
         )
 
@@ -70,38 +71,53 @@ async def is_refresh_token_valid(refresh_token: str):
             return await cursor.fetchone() is not None
 
 
-async def set_autopay(user_id, binding_id):
-    autopay_date = penultimate_date_of_current_month()
-    user_data = await get_autopay(user_id)
+async def is_autopaid(user_id: str) -> bool:
     async with aiosqlite.connect(DB_NAME) as db:
-        if user_data['enabled']:
-            await db.execute("UPDATE autopayments SET bindingId = ?, autopay_date = ? WHERE user = ?",
-                             (binding_id, autopay_date, user_id))
+        async with db.execute("SELECT * FROM autopayments WHERE user = ?", (user_id, )) as cur:
+            result = await cur.fetchone()
+            if result is not None:
+                return True
+            return False
+
+
+async def set_autopay(user_id: str, binding_id: str, payment_summ: int | float, ip: str):
+    last_updated = datetime.now()
+    async with aiosqlite.connect(DB_NAME) as db:
+        if await is_autopaid(user_id):
+            await db.execute("UPDATE autopayments SET bindingId = ?, payment_summ = ?, ip = ?, updated = ? "
+                             "WHERE user = ?", (binding_id, payment_summ, ip, last_updated, user_id))
         else:
-            await db.execute("INSERT OR IGNORE INTO autopayments (user, bindingId, autopay_date) VALUES (?, ?, ?)",
-                             (user_id, binding_id, autopay_date))
+            await db.execute("INSERT OR IGNORE INTO autopayments (user, bindingId, payment_summ, ip, updated) "
+                             "VALUES (?, ?, ?, ?, ?)", (user_id, binding_id, payment_summ, ip, last_updated))
         await db.commit()
 
 
 async def get_autopay(user_id):
-    user_data = await get_user_data(user_id)
     async with aiosqlite.connect(DB_NAME) as db:
         async with db.execute("SELECT * FROM autopayments WHERE user = ?", (user_id,)) as cursor:
             result = await cursor.fetchone()
-            if result is not None:
+            if result is not None and result[2] is not None:
                 return {"enabled": True,
-                        "pay_day": user_data['pay_day'],
-                        "pay_summ": user_data['min_pay']}
+                        "pay_day": penultimate_date_of_current_month().strftime("%d.%m.%Y"),
+                        "pay_summ": result[3]}
             else:
                 return {"enabled": False,
                         "pay_day": '',
                         "pay_summ": 0.0}
 
 
+async def get_autopay_users():
+    async with aiosqlite.connect(DB_NAME) as db:
+        async with db.execute("SELECT * FROM autopayments WHERE bindingId IS NOT NULL") as cur:
+            result = await cur.fetchall()
+            return result
+
+
 async def delete_autopay(user_id: str):
     async with aiosqlite.connect(DB_NAME) as db:
-        await db.execute("DELETE FROM autopayments WHERE user = ?",
-                         (user_id,))
+        last_updated = datetime.now()
+        await db.execute("UPDATE autopayments SET bindingId = ?, payment_summ = ?, updated = ? WHERE user = ?",
+                         (None, None, last_updated, user_id))
         await db.commit()
 
 
@@ -154,3 +170,4 @@ async def set_accident_status(accounts: list) -> None:
 
 # print(asyncio.run(get_autopay('11310')))
 # print(asyncio.run(get_accounts()))
+# print(asyncio.run(is_autopaid('0001')))

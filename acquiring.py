@@ -13,7 +13,8 @@ USER = os.getenv('BANK_USER')
 PASSWORD = os.getenv('BANK_PASS')
 
 
-async def pay_request(amount_rubles, order_number, auto_payment=False, client_id=None):
+async def pay_request(amount_rubles, auto_payment=False, client_id=None):
+    order_number = str(uuid.uuid4())
     amount_kopecks = amount_rubles * 100
     url = 'https://alfa.rbsuat.com/payment/rest/register.do'
     params = {
@@ -34,7 +35,7 @@ async def pay_request(amount_rubles, order_number, auto_payment=False, client_id
     async with aiohttp.ClientSession() as session:
         async with session.post(url, params=params, headers=headers) as response:
             print(await response.text())
-            return await response.text()
+            return json.loads(await response.text())
 
 
 async def autopay_request(order_id, binding_id, client_ip):
@@ -52,35 +53,6 @@ async def autopay_request(order_id, binding_id, client_ip):
     async with aiohttp.ClientSession() as session:
         async with session.post(url, params=params, headers=headers) as response:
             print(response.url)
-            print(await response.text())
-            return await response.text()
-
-
-async def reccurent_payment(binding_id, amount_rubles):
-    amount_kopecks = amount_rubles * 100
-    url = 'https://alfa.rbsuat.com/payment/rest/recurrentPayment.do'
-    params = {
-        'userName': USER,
-        'password': PASSWORD,
-        'orderNumber': str(uuid.uuid4()),
-        'bindingId': binding_id,
-        'amount': amount_kopecks
-    }
-    headers = {'accept': '*/*'}
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, params=params, headers=headers) as response:
-            print(response.url)
-            print(await response.text())
-            return await response.text()
-
-
-async def autopay_confirm():
-    url = 'https://alfa.rbsuat.com/payment/rest/finish3ds.do?lang=ru'
-
-    headers = {'accept': '*/*'}
-
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, params=params, headers=headers) as response:
             print(await response.text())
             return await response.text()
 
@@ -116,23 +88,6 @@ async def get_bindings(client_id):
             return json.loads(result)
 
 
-# async def delete_bindings(client_id):
-#     bindings = await get_bindings(client_id)
-#     binding_ids = bindings['bindings'] # [0]['bindingId']
-#     # binding_id = '7ca44e78-268f-762f-bd74-e6440206770f'
-#     for binding_id in binding_ids:
-#         url = 'https://alfa.rbsuat.com/payment/rest/unBindCard.do'
-#         params = {
-#             'userName': 'vt54_ru-api',
-#             'password': 'vt54_ru*?1',
-#             'bindingId': binding_id['bindingId']
-#         }
-#         headers = {'accept': '*/*'}
-#
-#         async with aiohttp.ClientSession() as session:
-#             async with session.post(url, params=params, headers=headers) as response:
-#                 print(await response.text())
-#                 # return await response.text()
 async def delete_binding(session, binding_id):
     url = 'https://alfa.rbsuat.com/payment/rest/unBindCard.do'
     params = {

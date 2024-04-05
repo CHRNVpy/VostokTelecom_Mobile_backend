@@ -50,13 +50,13 @@ def penultimate_date_of_current_month():
     return formatted_date
 
 
-def convert_to_dict(tuples: tuple[tuple]) -> dict:
+def convert_to_dict(tuples: tuple[tuple], key_prefix: str) -> dict:
     result = {}
     for key, value in tuples:
-        if f'felix-abons-{key}' in result:
-            result[f'felix-abons-{key}'].append(value)
+        if f'{key_prefix}{key}' in result:
+            result[f'{key_prefix}{key}'].append(value)
         else:
-            result[f'felix-abons-{key}'] = [value]
+            result[f'{key_prefix}{key}'] = [value]
     return result
 
 
@@ -211,7 +211,7 @@ async def get_user_group_id_old(accounts: list) -> dict[Any, list[Any]]:
             async with conn.cursor() as cur:
                 await cur.execute(sql, (accounts,))
                 result = await cur.fetchall()
-    return convert_to_dict(result)
+    return convert_to_dict(result, key_prefix='felix-abons-')
 
 
 async def get_user_group_id_new(accounts: list) -> dict[Any, list[Any]]:
@@ -223,7 +223,7 @@ async def get_user_group_id_new(accounts: list) -> dict[Any, list[Any]]:
             async with conn.cursor() as cur:
                 await cur.execute(sql, (accounts,))
                 result = await cur.fetchall()
-    return convert_to_dict(result)
+    return convert_to_dict(result, key_prefix='bgbilling-abons-')
 
 
 async def get_user_group_ids(accounts: dict) -> dict[Any, list[Any]]:
