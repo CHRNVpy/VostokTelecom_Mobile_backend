@@ -9,6 +9,8 @@ import aiomysql
 import asyncio
 from dotenv import load_dotenv
 
+from schemas import UserData, Rate
+
 load_dotenv()
 
 USER = os.getenv('billing_db_user')
@@ -227,11 +229,11 @@ async def get_user_group_id_new(accounts: list) -> dict[Any, list[Any]]:
 
 
 async def get_user_group_ids(accounts: dict) -> dict[Any, list[Any]]:
-        old_groups = await get_user_group_id_old(accounts['old'])
-        new_groups = await get_user_group_id_new(accounts['new'])
-        merged_dict = old_groups.copy()  # create a copy to keep the original dict1 intact
-        merged_dict.update(new_groups)
-        return merged_dict
+    old_groups = await get_user_group_id_old(accounts['old'])
+    new_groups = await get_user_group_id_new(accounts['new'])
+    merged_dict = old_groups.copy()  # create a copy to keep the original dict1 intact
+    merged_dict.update(new_groups)
+    return merged_dict
 
 
 async def get_user_data_new(account):
@@ -299,24 +301,31 @@ async def get_user_data_new(account):
                 await cur.execute(user_sql, (account,))
                 user_data = await cur.fetchone()
                 if user_data:
-                    user_info['full_name'] = _prettify_name(user_data['full_name']) if user_data['full_name'] else ''
-                    user_info['phone'] = user_data['phone'] if user_data['phone'] else ''
-                    user_info['address'] = user_data['address'] if user_data['address'] else ''
-                    user_info['email'] = user_data['email'] if user_data['email'] else ''
-                    user_info['rate_name'] = user_data['rate_name'] if user_data['rate_name'] else ''
-                    user_info['rate_speed'] = user_data['rate_name'].split("-")[1] + 'Мбит/с' if user_data[
-                        'rate_name'] else ''
-                    user_info['rate_cost'] = rate_cost[user_data['rate_name']] if user_data['rate_name'] else ''
-                    user_info['balance'] = float(user_data['balance']) if user_data['balance'] else 0.00
+                    # user_info['full_name'] = _prettify_name(user_data['full_name']) if user_data['full_name'] else ''
+                    # user_info['phone'] = user_data['phone'] if user_data['phone'] else ''
+                    # user_info['address'] = user_data['address'] if user_data['address'] else ''
+                    # user_info['email'] = user_data['email'] if user_data['email'] else ''
+                    # user_info['rate_name'] = user_data['rate_name'] if user_data['rate_name'] else ''
+                    # user_info['rate_speed'] = user_data['rate_name'].split("-")[1] + 'Мбит/с' if user_data[
+                    #     'rate_name'] else ''
+                    rate_cost = rate_cost[user_data['rate_name']] if user_data['rate_name'] else ''
+                    balance = float(user_data['balance']) if user_data['balance'] else 0.00
                     min_payment = rate_cost_int[user_info['rate_name']] - user_info['balance'] if user_info[
                         'rate_name'] else 0
-                    user_info['min_pay'] = float(min_payment) if float(min_payment) > 0 else 0.00
-                    user_info['pay_day'] = penultimate_date_of_current_month()
-    return user_info
+                    # user_info['min_pay'] = float(min_payment) if float(min_payment) > 0 else 0.00
+                    # user_info['pay_day'] = penultimate_date_of_current_month()
+                    return UserData(username=_prettify_name(user_data['full_name']) if user_data['full_name'] else '',
+                                    account=account,
+                                    balance=balance,
+                                    rate=Rate(rate_name=user_data['rate_name'] if user_data['rate_name'] else '',
+                                              rate_speed='',
+                                              rate_cost=user_data['rate_cost'] if user_data['rate_cost'] else ''),
+                                    min_pay=min_payment if min_payment > 0 else 0.00,
+                                    pay_day=penultimate_date_of_current_month())
+    # return UserData
 
 
 async def get_user_data_old(account: str | int):
-    user_info = {'account': account}
     user_query = """
     SELECT 
         CONCAT(account.last_name, ' ', account.first_name, ' ', account.patronymic) AS full_name,
@@ -342,23 +351,31 @@ async def get_user_data_old(account: str | int):
                 user_data = await cur.fetchone()
                 # print(user_data)
                 if user_data:
-                    user_info['full_name'] = user_data['full_name'] if user_data['full_name'] else ''
-                    user_info['phone'] = user_data['phone'] if user_data['phone'] else ''
-                    user_info['address'] = ''  # user_data['address'] if user_data['address'] else ''
-                    user_info['email'] = user_data['email'] if user_data['email'] else ''
-                    user_info['rate_name'] = user_data['rate_name'] if user_data['rate_name'] else ''
-                    user_info['rate_speed'] = ''  # user_data['rate_name'].split("-")[1] + 'Мбит/с' if user_data[
-                    # 'rate_name'] else ''
-                    user_info['rate_cost'] = user_data['rate_cost'] if user_data['rate_cost'] else ''
-                    user_info['balance'] = round(user_data['balance'], 2) if user_data['balance'] else 0.00
-                    min_payment = user_info['rate_cost'] - user_info['balance'] if user_info['rate_cost'] else 0
-                    user_info['min_pay'] = min_payment if min_payment > 0 else 0.00
-                    user_info['pay_day'] = penultimate_date_of_current_month()
-            return user_info
+                    # user_info['full_name'] = user_data['full_name'] if user_data['full_name'] else ''
+                    # user_info['phone'] = user_data['phone'] if user_data['phone'] else ''
+                    # user_info['address'] = ''  # user_data['address'] if user_data['address'] else ''
+                    # user_info['email'] = user_data['email'] if user_data['email'] else ''
+                    # user_info['rate_name'] = user_data['rate_name'] if user_data['rate_name'] else ''
+                    # user_info['rate_speed'] = ''  # user_data['rate_name'].split("-")[1] + 'Мбит/с' if user_data[
+                    # # 'rate_name'] else ''
+                    rate_cost = user_data['rate_cost'] if user_data['rate_cost'] else 0.00
+                    balance = round(user_data['balance'], 2) if user_data['balance'] else 0.00
+                    min_payment = rate_cost - balance if rate_cost else 0.00
+                    # user_info['min_pay'] = min_payment if min_payment > 0 else 0.00
+                    # user_info['pay_day'] = penultimate_date_of_current_month()
+                    return UserData(username=user_data['full_name'] if user_data['full_name'] else '',
+                                    account=account,
+                                    balance=balance,
+                                    rate=Rate(rate_name=user_data['rate_name'] if user_data['rate_name'] else '',
+                                              rate_speed='',
+                                              rate_cost=user_data['rate_cost'] if user_data['rate_cost'] else ''),
+                                    min_pay=min_payment if min_payment > 0 else 0.00,
+                                    pay_day=penultimate_date_of_current_month())
+            # return UserData.account
 
 
 async def get_user_data(account):
-    user = {}
+    user = UserData
     match len(account):
         case 4:
             user = await get_user_data_old(account)
@@ -400,7 +417,7 @@ async def update_user_balance_old(account: str | int, payment_amount: float, ord
 
 
 # async def update_balance_old():
-# pprint(asyncio.run(get_user_data('11310')))
+# pprint(asyncio.run(get_user_data('0000')))
 # print(asyncio.run(get_payments(11816)))
 # print(asyncio.run(get_user_data_old('0010')))
 # asyncio.run(update_user_balance_old('0000', 100.00))

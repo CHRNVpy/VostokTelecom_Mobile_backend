@@ -56,9 +56,11 @@ async def init_autopay():
             binding_id = user[2]
             payment_amount = user[3]
             ip = user[4]
-            pay_response = await pay_request(amount_rubles=payment_amount)
+            pay_response = await pay_request(amount_rubles=payment_amount, auto_payment=True, client_id=user_id)
             await autopay_request(pay_response['orderId'], binding_id, ip)
-            await set_autopay(user_id, binding_id, payment_amount, ip)
+            await check_payment_status(pay_response['orderId'], user_id, autopay=True)
+
+# asyncio.run(init_autopay())
 
 
 async def check_alerts():
