@@ -306,9 +306,9 @@ async def get_user_data_new(account):
                     # user_info['address'] = user_data['address'] if user_data['address'] else ''
                     # user_info['email'] = user_data['email'] if user_data['email'] else ''
                     rate_name = user_data['rate_name'] if user_data['rate_name'] else ''
-                    rate_speed = user_data['rate_name'].split("-")[1] + 'Мбит/с' if user_data[
-                        'rate_name'] else ''
-                    rate_cost = rate_cost[user_data['rate_name']] if user_data['rate_name'] else ''
+                    # rate_speed = user_data['rate_name'].split("-")[1] + 'Мбит/с' if user_data[
+                    #     'rate_name'] else ''
+                    # rate_cost = rate_cost[user_data['rate_name']] if user_data['rate_name'] else ''
                     balance = float(user_data['balance']) if user_data['balance'] else 0.00
                     min_payment = rate_cost_int[rate_name] - balance if rate_name else 0
                     # user_info['min_pay'] = float(min_payment) if float(min_payment) > 0 else 0.00
@@ -316,9 +316,9 @@ async def get_user_data_new(account):
                     return UserData(username=_prettify_name(user_data['full_name']) if user_data['full_name'] else '',
                                     account=account,
                                     balance=balance,
-                                    rate=Rate(rate_name=rate_name,
-                                              rate_speed=rate_speed,
-                                              rate_cost=rate_cost),
+                                    rate=Rate(rate_name='',
+                                              rate_speed='',
+                                              rate_cost=''),
                                     min_pay=min_payment if min_payment > 0 else 0.00,
                                     pay_day=penultimate_date_of_current_month())
     # return UserData
@@ -354,7 +354,7 @@ async def get_user_data_old(account: str | int):
                     # user_info['phone'] = user_data['phone'] if user_data['phone'] else ''
                     # user_info['address'] = ''  # user_data['address'] if user_data['address'] else ''
                     # user_info['email'] = user_data['email'] if user_data['email'] else ''
-                    rate_name = str(user_data['rate_name']) if user_data['rate_name'] else ''
+                    # rate_name = str(user_data['rate_name']) if user_data['rate_name'] else ''
                     # user_info['rate_speed'] = ''  # user_data['rate_name'].split("-")[1] + 'Мбит/с' if user_data[
                     # # 'rate_name'] else ''
                     rate_cost = user_data['rate_cost'] if user_data['rate_cost'] else 0.00
@@ -365,9 +365,9 @@ async def get_user_data_old(account: str | int):
                     return UserData(username=user_data['full_name'] if user_data['full_name'] else '',
                                     account=account,
                                     balance=balance,
-                                    rate=Rate(rate_name=rate_name,
+                                    rate=Rate(rate_name='',
                                               rate_speed='',
-                                              rate_cost=rate_cost),
+                                              rate_cost=''),
                                     min_pay=min_payment if min_payment > 0 else 0.00,
                                     pay_day=penultimate_date_of_current_month())
             # return UserData.account
