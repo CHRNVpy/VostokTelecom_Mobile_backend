@@ -60,6 +60,7 @@ async def init_autopay():
             await autopay_request(pay_response['orderId'], binding_id, ip)
             await check_payment_status(pay_response['orderId'], user_id, autopay=True)
 
+
 # asyncio.run(init_autopay())
 
 
@@ -106,7 +107,11 @@ async def check_alerts():
     affected_hostgroups = [item for item in status_response['result'] if int(item['status'])]
     felix_names = [group['name'] for d in affected_hostgroups for group in d['hostgroups']
                    if group['name'].startswith('felix')]
-    account_to_notify = [account for name in felix_names for account in groups.get(name, [])]
+    bgbilling_names = [group['name'] for d in affected_hostgroups for group in d['hostgroups']
+                       if group['name'].startswith('bgbilling')]
+    felix_accounts_to_notify = [account for name in felix_names for account in groups.get(name, [])]
+    bgbilling_accounts_to_notify = [account for name in bgbilling_names for account in groups.get(name, [])]
+    account_to_notify = felix_accounts_to_notify + bgbilling_accounts_to_notify
     await set_accident_status(account_to_notify)
 
 

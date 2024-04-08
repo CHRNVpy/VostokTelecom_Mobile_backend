@@ -1,11 +1,14 @@
 import asyncio
 import calendar
+import os
 from datetime import datetime, timedelta
 
 import aiosqlite
+from dotenv import load_dotenv
 
+load_dotenv()
 
-DB_NAME = "/home/chrnv/PycharmProjects/VostokTelecom_Mobile_backend/vt_mobile_app.db"
+DB_NAME = os.getenv('app_db')
 
 
 def penultimate_date_of_current_month():
