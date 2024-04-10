@@ -206,33 +206,35 @@ async def update_password(account, new_password):
 
 async def get_user_group_id_old(accounts: list) -> dict[Any, list[Any]]:
     # SQL query
-    sql = """SELECT acc_group_id, login FROM account WHERE login IN %s"""
+    sql_query = """SELECT acc_group_id, login FROM account WHERE login IN %s"""
 
     async with aiomysql.create_pool(**old_db_config) as pool:
         async with pool.acquire() as conn:
             async with conn.cursor() as cur:
-                await cur.execute(sql, (accounts,))
+                await cur.execute(sql_query, (accounts,))
                 result = await cur.fetchall()
     return convert_to_dict(result, key_prefix='felix-abons-')
 
 
 async def get_user_group_id_new(accounts: list) -> dict[Any, list[Any]]:
     # SQL query
-    sql = """SELECT gr, title FROM contract WHERE title IN %s"""
+    if accounts:
+        sql_query = """SELECT gr, title FROM contract WHERE title IN %s"""
 
-    async with aiomysql.create_pool(**db_config) as pool:
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(sql, (accounts,))
-                result = await cur.fetchall()
-    return convert_to_dict(result, key_prefix='bgbilling-abons-')
+        async with aiomysql.create_pool(**db_config) as pool:
+            async with pool.acquire() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute(sql_query, (accounts,))
+                    result = await cur.fetchall()
+        return convert_to_dict(result, key_prefix='bgbilling-abons-')
+    else:
+        return {}
 
 
 async def get_user_group_ids(accounts: dict) -> dict[Any, list[Any]]:
     old_groups = await get_user_group_id_old(accounts['old'])
     new_groups = await get_user_group_id_new(accounts['new'])
-    merged_dict = old_groups.copy()  # create a copy to keep the original dict1 intact
-    merged_dict.update(new_groups)
+    merged_dict = {**old_groups, **new_groups}
     return merged_dict
 
 
@@ -421,4 +423,4 @@ async def update_user_balance_old(account: str | int, payment_amount: float, ord
 # print(asyncio.run(get_user_data_old('0010')))
 # asyncio.run(update_user_balance_old('0000', 100.00))
 # asyncio.run(update_user_balance_old('0000', 100.00, '111-222-333-444-999'))
-# print(asyncio.run(get_user_group_id_old(['0000', '0144', '1104', '2029', '8336'])))
+# print(asyncio.run(get_user_group_id_new(['11310'])))

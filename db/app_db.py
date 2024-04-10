@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 import aiosqlite
 from dotenv import load_dotenv
 
+from schemas import MessagesList, Message
+
 load_dotenv()
 
 DB_NAME = os.getenv('app_db')
@@ -49,6 +51,16 @@ async def init_db():
             "status INTEGER, "
             "FOREIGN KEY(user) REFERENCES refresh_tokens(user))"
         )
+
+        await db.execute(
+            "CREATE TABLE IF NOT EXISTS messages ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "room_id TEXT, "
+            "role TEXT, "
+            "message TEXT, "
+            "created_at INTEGER)"
+        )
+
         await db.commit()
 
 
@@ -124,6 +136,42 @@ async def delete_autopay(user_id: str):
         await db.commit()
 
 
+async def add_message(room_id: str, role: str, message: str):
+    async with aiosqlite.connect(DB_NAME) as db:
+        created_at = datetime.now().timestamp()
+        await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, created_at) VALUES (?, ?, ?, ?)",
+                         (room_id, role, message, created_at))
+        await db.commit()
+
+
+async def get_messages(room_id: str, from_id: int = None, to_id: int = None):
+    query = ("SELECT id AS id, role AS role, message AS message, created_at as created "
+             "FROM messages WHERE 1 = 1 AND room_id = ?")
+    params = [room_id]
+
+    if from_id is not None:
+        query += " AND id >= ?"
+        params.append(from_id)
+    else:
+        query += " AND (? IS NULL OR id >= ?)"
+        params.extend([from_id, from_id])
+
+    if to_id is not None:
+        query += " AND id <= ?"
+        params.append(to_id)
+    else:
+        query += " AND (? IS NULL OR id <= ?)"
+        params.extend([to_id, to_id])
+    async with aiosqlite.connect(DB_NAME) as db:
+        async with db.execute(query, params) as cur:
+            result = await cur.fetchall()
+    message_instances = [Message(id=id, role=role, message=message, created=int(created))
+                         for id, role, message, created in result]
+    return MessagesList(messages=message_instances)
+
+
+# asyncio.run(get_messages('11310'))
+
 async def get_accounts():
     async with aiosqlite.connect(DB_NAME) as db:
         async with db.execute("SELECT user FROM refresh_tokens") as cursor:
@@ -156,19 +204,6 @@ async def set_accident_status(accounts: list) -> None:
                 await db.execute("UPDATE alerts SET status = ? WHERE user = ?",
                                  (1, account))
         await db.commit()
-
-
-# async def add_room(user: str):
-#     async with aiosqlite.connect(DB_NAME) as db:
-#         await db.execute("INSERT OR IGNORE INTO rooms (created_by) VALUES (?)",
-#                          (user, ))
-#         await db.commit()
-#
-#
-# async def get_rooms():
-#     async with aiosqlite.connect(DB_NAME) as db:
-#         async with await db.execute("SELECT * FROM rooms") as cursor:
-#             return await cursor.fetchall()
 
 
 # print(asyncio.run(get_autopay('11310')))

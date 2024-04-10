@@ -108,15 +108,3 @@ async def delete_bindings(client_id):
     async with aiohttp.ClientSession() as session:
         tasks = [delete_binding(session, binding_id['bindingId']) for binding_id in binding_ids]
         await asyncio.gather(*tasks)
-
-
-# asyncio.run(pay_request(1010, str(uuid.uuid4())))
-# asyncio.run(get_status_payment('040dfa5c-79d2-7b17-99c3-a1390206770f'))
-# asyncio.run(autopay_request(order_id='04048abf-ae22-7016-822a-44400206770f',
-#                             binding_id='7ab80967-6178-7829-8f31-616a0206770f',
-#                             client_ip='91.105.141.111'))
-# asyncio.run(autopay_confirm())
-# print(asyncio.run(get_bindings('0000')))
-# asyncio.run(delete_bindings('11310'))
-# asyncio.run(reccurent_payment('7ab80967-6178-7829-8f31-616a0206770f', 1))
-# asyncio.run(is_paid_order('040dfa5c-79d2-7b17-99c3-a1390206770f'))

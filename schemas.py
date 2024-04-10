@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel
 
@@ -72,3 +72,14 @@ class AutoPayDetails(BaseModel):
 
 class Accident(BaseModel):
     accident: bool
+
+
+class Message(BaseModel):
+    id: int = 0
+    role: str = 'user'
+    message: str
+    created: Optional[int] = None
+
+
+class MessagesList(BaseModel):
+    messages: List[Message]

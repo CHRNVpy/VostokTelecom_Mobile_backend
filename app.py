@@ -1,18 +1,19 @@
 import datetime
 import json
 import uuid
+from typing import Optional
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fastapi import FastAPI, HTTPException, Depends, status, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Depends, status, BackgroundTasks, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from acquiring import pay_request, delete_bindings
 from db.app_db import init_db, store_refresh_token, add_user, is_refresh_token_valid, get_autopay, delete_autopay, \
-    get_accident_status
+    get_accident_status, add_message, get_messages
 from db.billing_db import get_user_data, get_payments, update_password
 from schemas import User, Token, RefreshTokenRequest, UserData, HistoryPaymentsList, PasswordUpdate, News, Payment, \
-    PaymentAmount, AutoPayDetails, Accident
+    PaymentAmount, AutoPayDetails, Accident, MessagesList, Message
 from service import authenticate_user, create_access_token, create_refresh_token, decode_token, get_current_user, \
     validate_password
 from tasks import check_payment_status, check_alerts, init_autopay
@@ -140,6 +141,25 @@ async def disable_autopay(current_user: str = Depends(get_current_user)):
 async def get_accident(current_user: str = Depends(get_current_user)):
     alert_status = await get_accident_status(current_user)
     return {"accident": alert_status}
+
+
+@app.get("/api/chat", response_model=MessagesList,
+         responses={401: {"description": "Invalid access token"}, 500: {"description": "Internal server error"}},
+         tags=['chat'])
+async def get_chat_messages(current_user: str = Depends(get_current_user),
+                            from_id: Optional[int] = Query(None, description='filters results from id (optional)'),
+                            to_id: Optional[int] = Query(None, description='filters results to id (optional)')):
+    messages = await get_messages(current_user, from_id, to_id)
+    return messages
+
+
+@app.post("/api/chat", response_model=MessagesList,
+          responses={401: {"description": "Invalid access token"}, 500: {"description": "Internal server error"}},
+          tags=['chat'])
+async def post_new_message(message: Message, current_user: str = Depends(get_current_user)):
+    await add_message(current_user, message.role, message.message)
+    messages = await get_messages(current_user, from_id=message.id)
+    return messages
 
 
 @app.on_event("startup")
