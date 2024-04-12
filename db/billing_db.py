@@ -192,7 +192,7 @@ async def check_password(password):
                     return False
 
 
-async def update_password(account, new_password):
+async def update_password_new(account, new_password):
     # SQL query
     query = """
     UPDATE contract SET pswd = %s WHERE title = %s
@@ -202,6 +202,26 @@ async def update_password(account, new_password):
             async with conn.cursor() as cur:
                 await cur.execute(query, (new_password, account))
                 await conn.commit()
+
+
+async def update_password_old(account, new_password):
+    # SQL query
+    query = """
+    UPDATE account SET passwd1 = %s WHERE login = %s
+    """
+    async with aiomysql.create_pool(**old_db_config) as pool:
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(query, (new_password, account))
+                await conn.commit()
+
+
+async def update_password(account, new_password):
+    match len(account):
+        case 4:
+            await update_password_old(account, new_password)
+        case 5:
+            await update_password_new(account, new_password)
 
 
 async def get_user_group_id_old(accounts: list) -> dict[Any, list[Any]]:
