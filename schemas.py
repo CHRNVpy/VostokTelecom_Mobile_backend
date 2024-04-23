@@ -81,5 +81,19 @@ class Message(BaseModel):
     created: Optional[int] = None
 
 
+class NewMessage(BaseModel):
+    room_id: str
+    role: str = 'admin'
+    message: str
+
+
 class MessagesList(BaseModel):
     messages: List[Message]
+
+
+class Room(BaseModel):
+    name: str
+
+
+class Rooms(BaseModel):
+    rooms: List[Room]

@@ -6,7 +6,8 @@ from datetime import datetime, timedelta
 import aiosqlite
 from dotenv import load_dotenv
 
-from schemas import MessagesList, Message
+from db.billing_db import get_group_id
+from schemas import MessagesList, Message, Room, Rooms, News, NewsArticle
 
 load_dotenv()
 
@@ -61,6 +62,13 @@ async def init_db():
             "created_at INTEGER)"
         )
 
+        await db.execute(
+            "CREATE TABLE IF NOT EXISTS news ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "group_id INTEGER, "
+            "message TEXT)"
+        )
+
         await db.commit()
 
 
@@ -86,9 +94,24 @@ async def is_refresh_token_valid(refresh_token: str):
             return await cursor.fetchone() is not None
 
 
+async def add_news(group_id, message):
+    async with aiosqlite.connect(DB_NAME) as db:
+        await db.execute("INSERT OR IGNORE INTO news (group_id, message) VALUES (?, ?)",
+                         (group_id, message))
+        await db.commit()
+
+
+async def get_group_news(account: str) -> News:
+    group_id = await get_group_id(account)
+    async with aiosqlite.connect(DB_NAME) as db:
+        async with db.execute("SELECT message FROM news WHERE group_id = ?", (group_id,)) as cur:
+            result = await cur.fetchall()
+            return News(news=[NewsArticle(article=item[0]) for item in result])
+
+
 async def is_autopaid(user_id: str) -> bool:
     async with aiosqlite.connect(DB_NAME) as db:
-        async with db.execute("SELECT * FROM autopayments WHERE user = ?", (user_id, )) as cur:
+        async with db.execute("SELECT * FROM autopayments WHERE user = ?", (user_id,)) as cur:
             result = await cur.fetchone()
             if result is not None:
                 return True
@@ -150,17 +173,17 @@ async def get_messages(room_id: str, from_id: int = None, to_id: int = None):
     params = [room_id]
 
     if from_id is not None:
-        query += " AND id >= ?"
+        query += " AND id > ?"
         params.append(from_id)
     else:
-        query += " AND (? IS NULL OR id >= ?)"
+        query += " AND (? IS NULL OR id > ?)"
         params.extend([from_id, from_id])
 
     if to_id is not None:
-        query += " AND id <= ?"
+        query += " AND id < ?"
         params.append(to_id)
     else:
-        query += " AND (? IS NULL OR id <= ?)"
+        query += " AND (? IS NULL OR id < ?)"
         params.extend([to_id, to_id])
     async with aiosqlite.connect(DB_NAME) as db:
         async with db.execute(query, params) as cur:
@@ -170,7 +193,17 @@ async def get_messages(room_id: str, from_id: int = None, to_id: int = None):
     return MessagesList(messages=message_instances)
 
 
-# asyncio.run(get_messages('11310'))
+async def get_rooms():
+    query = "SELECT DISTINCT room_id FROM messages"
+    async with aiosqlite.connect(DB_NAME) as db:
+        async with db.execute(query, ) as cur:
+            result = await cur.fetchall()
+    room_instances = [Room(name=room[0])
+                      for room in result]
+    return Rooms(rooms=room_instances)
+
+
+# print(asyncio.run(get_rooms()))
 
 async def get_accounts():
     async with aiosqlite.connect(DB_NAME) as db:
@@ -184,7 +217,7 @@ async def get_accounts():
 async def get_accident_status(account: str):
     async with aiosqlite.connect(DB_NAME) as db:
         async with db.execute("SELECT status FROM alerts WHERE user = ?",
-                         (account, )) as cursor:
+                              (account,)) as cursor:
             status = await cursor.fetchone()
             if status is not None and status[0]:
                 return True
@@ -194,7 +227,7 @@ async def get_accident_status(account: str):
 
 async def set_accident_status(accounts: list) -> None:
     async with aiosqlite.connect(DB_NAME) as db:
-        await db.execute("UPDATE alerts SET status = ?", (0, ))
+        await db.execute("UPDATE alerts SET status = ?", (0,))
         for account in accounts:
             current_status = await get_accident_status(account)
             if not current_status:
@@ -204,7 +237,6 @@ async def set_accident_status(accounts: list) -> None:
                 await db.execute("UPDATE alerts SET status = ? WHERE user = ?",
                                  (1, account))
         await db.commit()
-
 
 # print(asyncio.run(get_autopay('11310')))
 # print(asyncio.run(get_accounts()))

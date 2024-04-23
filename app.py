@@ -10,15 +10,15 @@ from fastapi.responses import JSONResponse
 
 from acquiring import pay_request, delete_bindings
 from db.app_db import init_db, store_refresh_token, add_user, is_refresh_token_valid, get_autopay, delete_autopay, \
-    get_accident_status, add_message, get_messages
+    get_accident_status, add_message, get_messages, get_rooms, get_group_news
 from db.billing_db import get_user_data, get_payments, update_password
 from schemas import User, Token, RefreshTokenRequest, UserData, HistoryPaymentsList, PasswordUpdate, News, Payment, \
-    PaymentAmount, AutoPayDetails, Accident, MessagesList, Message
+    PaymentAmount, AutoPayDetails, Accident, MessagesList, Message, Rooms, NewMessage
 from service import authenticate_user, create_access_token, create_refresh_token, decode_token, get_current_user, \
     validate_password
 from tasks import check_payment_status, check_alerts, init_autopay
 
-# Define the FastAPI app
+
 app = FastAPI(title='VostokTelekom Mobile API', description='BASE URL >> https://mobile.vt54.ru')
 scheduler = AsyncIOScheduler()
 
@@ -96,10 +96,8 @@ async def get_payments_history(current_user: str = Depends(get_current_user)):
 @app.get("/api/collection-news", response_model=News,
          responses={401: {"description": "Invalid access token"}}, tags=['collection'])
 async def get_news(current_user: str = Depends(get_current_user)):
-    news = [{'article': 'Восток-Телеком объявляет о запуске новой программы лояльности для своих клиентов'},
-            {'article': 'Новый тарифный план, который призван удовлетворить потребности самых требовательных клиентов'}
-            ]
-    return {'news': news}
+    news = await get_group_news(current_user)
+    return news
 
 
 @app.post("/api/pay", response_model=Payment,
@@ -159,6 +157,39 @@ async def get_chat_messages(current_user: str = Depends(get_current_user),
 async def post_new_message(message: Message, current_user: str = Depends(get_current_user)):
     await add_message(current_user, message.role, message.message)
     messages = await get_messages(current_user, from_id=message.id)
+    return messages
+
+
+@app.get('/api/rooms', response_model=Rooms,
+         responses={401: {"description": "Invalid access token"}, 500: {"description": "Internal server error"}},
+         tags=['chat'])
+async def get_chat_rooms(current_user: str = Depends(get_current_user)):
+    if current_user != 'support':
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect admin credentials")
+    rooms = await get_rooms()
+    return rooms
+
+
+@app.get('/api/rooms/chat', response_model=MessagesList,
+         responses={401: {"description": "Invalid access token"}, 500: {"description": "Internal server error"}},
+         tags=['chat'])
+async def get_rooms_messages(room_id: Optional[str] = Query(None, description='room_id'),
+                             current_user: str = Depends(get_current_user)):
+    if current_user != 'support':
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect admin credentials")
+    messages = await get_messages(room_id)
+    return messages
+
+
+@app.post('/api/rooms/chat', response_model=MessagesList,
+          responses={401: {"description": "Invalid access token"}, 500: {"description": "Internal server error"}},
+          tags=['chat'])
+async def post_new_admin_message(message: NewMessage,
+                                 current_user: str = Depends(get_current_user)):
+    if current_user != 'support':
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect admin credentials")
+    await add_message(message.room_id, message.role, message.message)
+    messages = await get_messages(message.room_id)
     return messages
 
 

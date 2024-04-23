@@ -93,7 +93,7 @@ async def get_user(account):
     match len(account):
         case 4:
             user = await get_user_old(account)
-        case 5:
+        case length if length >= 5:
             user = await get_user_new(account)
     return user
 
@@ -256,6 +256,34 @@ async def get_user_group_ids(accounts: dict) -> dict[Any, list[Any]]:
     new_groups = await get_user_group_id_new(accounts['new'])
     merged_dict = {**old_groups, **new_groups}
     return merged_dict
+
+
+async def get_group_id_old(account: str) -> int:
+    sql_query = """SELECT acc_group_id FROM account WHERE login = %s"""
+    async with aiomysql.create_pool(**old_db_config) as pool:
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql_query, (account,))
+                result = await cur.fetchone()
+                return result[0]
+
+
+async def get_group_id_new(account: str) -> int:
+    sql_query = """SELECT gr FROM contract WHERE title = %s"""
+    async with aiomysql.create_pool(**db_config) as pool:
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql_query, (account,))
+                result = await cur.fetchone()
+                return result[0]
+
+
+async def get_group_id(account: str) -> int:
+    match len(account):
+        case 4:
+            return await get_group_id_old(account)
+        case 5:
+            return await get_group_id_new(account)
 
 
 async def get_user_data_new(account):
@@ -438,7 +466,7 @@ async def update_user_balance_old(account: str | int, payment_amount: float, ord
 
 
 # async def update_balance_old():
-# pprint(asyncio.run(get_user_data('0000')))
+# pprint(asyncio.run(get_user('support')))
 # print(asyncio.run(get_payments(11816)))
 # print(asyncio.run(get_user_data_old('0010')))
 # asyncio.run(update_user_balance_old('0000', 100.00))

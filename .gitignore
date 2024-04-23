@@ -4,3 +4,4 @@ __pycache__/
 db/__pycache__/
 poetry.lock
 *.db
+peppy-tiger-374003-fa5a704f0d24.json

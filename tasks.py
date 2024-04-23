@@ -7,9 +7,11 @@ import time
 from pprint import pprint
 
 import aiohttp
+# import gspread
+# from oauth2client.service_account import ServiceAccountCredentials
 
 from acquiring import get_status_payment, pay_request, autopay_request
-from db.app_db import set_autopay, get_accounts, set_accident_status, get_autopay_users
+from db.app_db import set_autopay, get_accounts, set_accident_status, get_autopay_users, add_news
 from db.billing_db import update_user_balance_old, get_user_group_ids
 from dotenv import load_dotenv
 
@@ -59,9 +61,6 @@ async def init_autopay():
             pay_response = await pay_request(amount_rubles=payment_amount, auto_payment=True, client_id=user_id)
             await autopay_request(pay_response['orderId'], binding_id, ip)
             await check_payment_status(pay_response['orderId'], user_id, autopay=True)
-
-
-# asyncio.run(init_autopay())
 
 
 async def check_alerts():
@@ -115,4 +114,18 @@ async def check_alerts():
     await set_accident_status(account_to_notify)
 
 
-# asyncio.run(check_alerts())
+# async def check_news():
+#     scope = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/drive.file',
+#              'https://www.googleapis.com/auth/spreadsheets']
+#
+#     creds = ServiceAccountCredentials.from_json_keyfile_name('peppy-tiger-374003-fa5a704f0d24.json', scope)
+#
+#     client = gspread.authorize(creds)
+#
+#     wks = client.open("vt54_news").sheet1
+#     all_rows = wks.get_all_values()
+#     for row in all_rows:
+#         if row[1].isdigit():
+#             await add_news(int(row[1]), row[2])
+
+# asyncio.run(check_news())
