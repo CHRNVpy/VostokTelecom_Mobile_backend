@@ -94,6 +94,7 @@ class MessagesList(BaseModel):
 
 class Room(BaseModel):
     name: str
+    latest_message: str
 
 
 class Rooms(BaseModel):

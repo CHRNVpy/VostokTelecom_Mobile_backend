@@ -195,16 +195,33 @@ async def get_messages(room_id: str, from_id: int = None, to_id: int = None):
 
 
 async def get_rooms():
-    query = "SELECT DISTINCT room_id FROM messages"
+    # query = "SELECT DISTINCT room_id FROM messages"
+    query = """SELECT
+                    room_id,
+                    (SELECT message
+                     FROM messages m2
+                     WHERE m2.room_id = m1.room_id
+                     ORDER BY created_at DESC
+                     LIMIT 1) AS latest_message,
+                    (SELECT created_at
+                     FROM messages m2
+                     WHERE m2.room_id = m1.room_id
+                     ORDER BY created_at DESC
+                     LIMIT 1) AS latest_message_created_at
+                FROM messages m1
+                GROUP BY room_id
+                ORDER BY latest_message_created_at DESC"""
     async with aiosqlite.connect(DB_NAME) as db:
         async with db.execute(query, ) as cur:
             result = await cur.fetchall()
-    room_instances = [Room(name=room[0])
+    room_instances = [Room(name=room[0],
+                           latest_message=room[1])
                       for room in result]
     return Rooms(rooms=room_instances)
 
 
 # print(asyncio.run(get_rooms()))
+
 
 async def get_accounts():
     async with aiosqlite.connect(DB_NAME) as db:
