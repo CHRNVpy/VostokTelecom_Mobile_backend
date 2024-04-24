@@ -168,8 +168,8 @@ async def add_message(room_id: str, role: str, message: str):
 
 
 async def get_messages(room_id: str, from_id: int = None, to_id: int = None):
-    query = ("SELECT id AS id, role AS role, message AS message, created_at as created "
-             "FROM messages WHERE 1 = 1 AND room_id = ?")
+    query = ("SELECT id, role, message, created_at FROM messages "
+             "WHERE 1 = 1 AND room_id = ?")
     params = [room_id]
 
     if from_id is not None:
@@ -185,6 +185,7 @@ async def get_messages(room_id: str, from_id: int = None, to_id: int = None):
     else:
         query += " AND (? IS NULL OR id < ?)"
         params.extend([to_id, to_id])
+    query += " ORDER BY created_at DESC LIMIT 20"
     async with aiosqlite.connect(DB_NAME) as db:
         async with db.execute(query, params) as cur:
             result = await cur.fetchall()

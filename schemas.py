@@ -81,7 +81,8 @@ class Message(BaseModel):
     created: Optional[int] = None
 
 
-class NewMessage(BaseModel):
+class NewAdminMessage(BaseModel):
+    from_id: int = None
     room_id: str
     role: str = 'admin'
     message: str
