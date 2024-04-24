@@ -15,9 +15,8 @@ from db.billing_db import get_user_data, get_payments, update_password
 from schemas import User, Token, RefreshTokenRequest, UserData, HistoryPaymentsList, PasswordUpdate, News, Payment, \
     PaymentAmount, AutoPayDetails, Accident, MessagesList, Message, Rooms, NewAdminMessage
 from service import authenticate_user, create_access_token, create_refresh_token, decode_token, get_current_user, \
-    validate_password
+    validate_password, is_support
 from tasks import check_payment_status, check_alerts, init_autopay
-
 
 app = FastAPI(title='VostokTelekom Mobile API', description='BASE URL >> https://mobile.vt54.ru')
 scheduler = AsyncIOScheduler()
@@ -146,7 +145,7 @@ async def get_accident(current_user: str = Depends(get_current_user)):
          tags=['chat'])
 async def get_chat_messages(current_user: str = Depends(get_current_user),
                             from_id: Optional[int] = Query(None, description='filters results from id (optional)')):
-                            # to_id: Optional[int] = Query(None, description='filters results to id (optional)')):
+    # to_id: Optional[int] = Query(None, description='filters results to id (optional)')):
     messages = await get_messages(room_id=current_user, from_id=from_id)
     return messages
 
@@ -164,7 +163,7 @@ async def post_new_user_message(message: Message, current_user: str = Depends(ge
          responses={401: {"description": "Invalid access token"}, 500: {"description": "Internal server error"}},
          tags=['rooms'])
 async def get_chat_rooms(current_user: str = Depends(get_current_user)):
-    if current_user != 'support':
+    if not is_support(current_user):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect admin credentials")
     rooms = await get_rooms()
     return rooms
@@ -176,7 +175,7 @@ async def get_chat_rooms(current_user: str = Depends(get_current_user)):
 async def get_rooms_messages(room_id: Optional[str] = Query(None, description='room_id'),
                              from_id: Optional[int] = Query(None, description='filters results from id (optional)'),
                              current_user: str = Depends(get_current_user)):
-    if current_user != 'support':
+    if not is_support(current_user):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect admin credentials")
     messages = await get_messages(room_id=room_id, from_id=from_id)
     return messages
@@ -187,7 +186,7 @@ async def get_rooms_messages(room_id: Optional[str] = Query(None, description='r
           tags=['rooms'])
 async def post_new_admin_message(message: NewAdminMessage,
                                  current_user: str = Depends(get_current_user)):
-    if current_user != 'support':
+    if not is_support(current_user):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect admin credentials")
     await add_message(message.room_id, message.role, message.message)
     messages = await get_messages(room_id=message.room_id, from_id=message.from_id)

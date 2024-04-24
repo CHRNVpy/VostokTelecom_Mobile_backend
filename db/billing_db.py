@@ -98,6 +98,16 @@ async def get_user(account):
     return user
 
 
+async def check_support(login: str) -> bool:
+    query = 'SELECT comment FROM contract WHERE title = %s'
+    async with aiomysql.create_pool(**db_config) as pool:
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(query, (login,))
+                result = await cur.fetchone()
+                return True if result[0] == 'support' else False
+
+
 async def get_payments_new(account):
     def date_90_days_ago():
         # Get the current date
@@ -463,7 +473,6 @@ async def update_user_balance_old(account: str | int, payment_amount: float, ord
             except Exception as e:
                 await conn.rollback()  # Rollback the transaction on error
                 raise e
-
 
 # async def update_balance_old():
 # pprint(asyncio.run(get_user('support')))

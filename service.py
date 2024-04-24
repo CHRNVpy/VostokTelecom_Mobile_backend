@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
-from db.billing_db import get_user
+from db.billing_db import get_user, check_support
 from dotenv import load_dotenv
 
 from schemas import PasswordUpdate
@@ -77,6 +77,13 @@ async def authenticate_user(login: str, password: str):
     if not verify_password(password, user["password"]):
         return False
     return user
+
+
+async def is_support(login: str):
+    support = await check_support(login)
+    if not support:
+        return False
+    return True
 
 
 # Function to get current user from access token
