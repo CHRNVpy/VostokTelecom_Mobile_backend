@@ -81,9 +81,7 @@ async def authenticate_user(login: str, password: str):
 
 async def is_support(login: str):
     support = await check_support(login)
-    if not support:
-        return False
-    return True
+    return False if not support else True
 
 
 # Function to get current user from access token

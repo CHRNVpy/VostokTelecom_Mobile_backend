@@ -173,10 +173,10 @@ async def get_messages(room_id: str, from_id: int = None, to_id: int = None):
     params = [room_id]
 
     if from_id is not None:
-        query += " AND id < ?"
+        query += " AND id > ?"
         params.append(from_id)
     else:
-        query += " AND (? IS NULL OR id < ?)"
+        query += " AND (? IS NULL OR id > ?)"
         params.extend([from_id, from_id])
 
     if to_id is not None:
