@@ -164,7 +164,7 @@ async def post_new_user_message(message: Message, current_user: str = Depends(ge
          responses={401: {"description": "Invalid access token"}, 500: {"description": "Internal server error"}},
          tags=['rooms'])
 async def get_chat_rooms(current_user: str = Depends(get_current_user)):
-    if not is_support(current_user):
+    if not await is_support(current_user):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect admin credentials")
     rooms = await get_rooms()
     return rooms
@@ -176,7 +176,7 @@ async def get_chat_rooms(current_user: str = Depends(get_current_user)):
 async def get_rooms_messages(room_id: Optional[str] = Query(None, description='room_id'),
                              from_id: Optional[int] = Query(None, description='filters results from id (optional)'),
                              current_user: str = Depends(get_current_user)):
-    if not is_support(current_user):
+    if not await is_support(current_user):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect admin credentials")
     messages = await get_messages(room_id=room_id, get_from_id=from_id)
     return messages
@@ -187,7 +187,7 @@ async def get_rooms_messages(room_id: Optional[str] = Query(None, description='r
           tags=['rooms'])
 async def post_new_admin_message(message: NewAdminMessage,
                                  current_user: str = Depends(get_current_user)):
-    if not is_support(current_user):
+    if not await is_support(current_user):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect admin credentials")
     if message.message:
         await add_message(message.room_id, message.role, message.message)
