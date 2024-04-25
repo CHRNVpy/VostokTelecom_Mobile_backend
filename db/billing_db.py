@@ -105,7 +105,9 @@ async def check_support(login: str) -> bool:
             async with conn.cursor() as cur:
                 await cur.execute(query, (login,))
                 result = await cur.fetchone()
-                return True if result else False
+                if result and result[0] == 'support':
+                    return True
+                return False
 
 
 async def get_payments_new(account):
