@@ -185,12 +185,12 @@ async def get_messages(room_id: str, from_id: int = None, to_id: int = None):
     else:
         query += " AND (? IS NULL OR id < ?)"
         params.extend([to_id, to_id])
-    query += " ORDER BY created_at ASC LIMIT 20"
+    query += " ORDER BY created_at DESC LIMIT 20"
     async with aiosqlite.connect(DB_NAME) as db:
         async with db.execute(query, params) as cur:
             result = await cur.fetchall()
     message_instances = [Message(id=id, role=role, message=message, created=int(created))
-                         for id, role, message, created in result]
+                         for id, role, message, created in result].reverse()
     return MessagesList(messages=message_instances)
 
 
