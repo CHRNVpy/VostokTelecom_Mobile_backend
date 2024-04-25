@@ -154,7 +154,8 @@ async def get_chat_messages(current_user: str = Depends(get_current_user),
           responses={401: {"description": "Invalid access token"}, 500: {"description": "Internal server error"}},
           tags=['chat'])
 async def post_new_user_message(message: Message, current_user: str = Depends(get_current_user)):
-    await add_message(current_user, message.role, message.message)
+    if message.message:
+        await add_message(current_user, message.role, message.message)
     messages = await get_messages(room_id=current_user, from_id=message.id)
     return messages
 
@@ -188,7 +189,8 @@ async def post_new_admin_message(message: NewAdminMessage,
                                  current_user: str = Depends(get_current_user)):
     if not is_support(current_user):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect admin credentials")
-    await add_message(message.room_id, message.role, message.message)
+    if message.message:
+        await add_message(message.room_id, message.role, message.message)
     messages = await get_messages(room_id=message.room_id, from_id=message.from_id)
     return messages
 
