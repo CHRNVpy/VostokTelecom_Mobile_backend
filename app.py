@@ -146,7 +146,7 @@ async def get_accident(current_user: str = Depends(get_current_user)):
 async def get_chat_messages(current_user: str = Depends(get_current_user),
                             from_id: Optional[int] = Query(None, description='filters results from id (optional)')):
     # to_id: Optional[int] = Query(None, description='filters results to id (optional)')):
-    messages = await get_messages(room_id=current_user, from_id=from_id)
+    messages = await get_messages(room_id=current_user, get_from_id=from_id)
     return messages
 
 
@@ -156,7 +156,7 @@ async def get_chat_messages(current_user: str = Depends(get_current_user),
 async def post_new_user_message(message: Message, current_user: str = Depends(get_current_user)):
     if message.message:
         await add_message(current_user, message.role, message.message)
-    messages = await get_messages(room_id=current_user, from_id=message.id)
+    messages = await get_messages(room_id=current_user, post_from_id=message.id)
     return messages
 
 
@@ -178,7 +178,7 @@ async def get_rooms_messages(room_id: Optional[str] = Query(None, description='r
                              current_user: str = Depends(get_current_user)):
     if not is_support(current_user):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect admin credentials")
-    messages = await get_messages(room_id=room_id, from_id=from_id)
+    messages = await get_messages(room_id=room_id, get_from_id=from_id)
     return messages
 
 
@@ -191,7 +191,7 @@ async def post_new_admin_message(message: NewAdminMessage,
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect admin credentials")
     if message.message:
         await add_message(message.room_id, message.role, message.message)
-    messages = await get_messages(room_id=message.room_id, from_id=message.from_id)
+    messages = await get_messages(room_id=message.room_id, post_from_id=message.from_id)
     return messages
 
 

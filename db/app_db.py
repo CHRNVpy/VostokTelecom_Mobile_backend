@@ -167,24 +167,23 @@ async def add_message(room_id: str, role: str, message: str):
         await db.commit()
 
 
-async def get_messages(room_id: str, from_id: int = None, to_id: int = None):
-    query = ("SELECT id, role, message, created_at FROM messages "
-             "WHERE 1 = 1 AND room_id = ?")
+async def get_messages(room_id: str, get_from_id: int = None, post_from_id: int = None):
+    query = "SELECT id, role, message, created_at FROM messages WHERE room_id = ?"
     params = [room_id]
 
-    if from_id is not None:
-        query += " AND id > ?"
-        params.append(from_id)
-    else:
-        query += " AND (? IS NULL OR id > ?)"
-        params.extend([from_id, from_id])
-
-    if to_id is not None:
+    if get_from_id is not None:
         query += " AND id < ?"
-        params.append(to_id)
-    else:
-        query += " AND (? IS NULL OR id < ?)"
-        params.extend([to_id, to_id])
+        params.append(get_from_id)
+    # else:
+    #     query += " AND (? IS NULL OR id < ?)"
+    #     params.extend([from_id, from_id])
+
+    if post_from_id is not None:
+        query += " AND id > ?"
+        params.append(post_from_id)
+    # else:
+    #     query += " AND (? IS NULL OR id > ?)"
+    #     params.extend([to_id, to_id])
     query += " ORDER BY created_at DESC LIMIT 20"
     async with aiosqlite.connect(DB_NAME) as db:
         async with db.execute(query, params) as cur:
