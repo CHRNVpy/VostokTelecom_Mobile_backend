@@ -173,10 +173,10 @@ async def get_messages(room_id: str, from_id: int = None, to_id: int = None):
     params = [room_id]
 
     if from_id is not None:
-        query += " AND id > ?"
+        query += " AND id < ?"
         params.append(from_id)
     else:
-        query += " AND (? IS NULL OR id > ?)"
+        query += " AND (? IS NULL OR id < ?)"
         params.extend([from_id, from_id])
 
     if to_id is not None:
@@ -190,8 +190,8 @@ async def get_messages(room_id: str, from_id: int = None, to_id: int = None):
         async with db.execute(query, params) as cur:
             result = await cur.fetchall()
     message_instances = [Message(id=id, role=role, message=message, created=int(created))
-                         for id, role, message, created in result].reverse()
-    return MessagesList(messages=message_instances)
+                         for id, role, message, created in result]
+    return MessagesList(messages=reversed(message_instances))
 
 
 async def get_rooms():
