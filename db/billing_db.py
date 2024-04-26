@@ -349,6 +349,16 @@ async def get_user_data_new(account):
         contract_tariff.id DESC
     LIMIT 1
     """
+    if await check_support(account):
+        return UserData(username='',
+                        role='support',
+                        account='',
+                        balance=0,
+                        rate=Rate(rate_name='',
+                                  rate_speed='',
+                                  rate_cost=''),
+                        min_pay=0.00,
+                        pay_day='')
 
     async with aiomysql.create_pool(**db_config) as pool:
         async with pool.acquire() as conn:
@@ -360,7 +370,7 @@ async def get_user_data_new(account):
                     balance = float(user_data['balance']) if user_data['balance'] else 0.00
                     min_payment = rate_cost_int[rate_name] - balance if rate_name else 0
                     return UserData(username=_prettify_name(user_data['full_name']) if user_data['full_name'] else '',
-                                    role='user' if not await check_support(account) else 'support',
+                                    role='user',
                                     account=account,
                                     balance=balance,
                                     rate=Rate(rate_name='',
