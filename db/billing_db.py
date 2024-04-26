@@ -424,7 +424,7 @@ async def get_user_data(account):
     match len(account):
         case 4:
             user = await get_user_data_old(account)
-        case 5:
+        case length if length >= 5:
             user = await get_user_data_new(account)
     return user
 
