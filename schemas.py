@@ -26,6 +26,7 @@ class Rate(BaseModel):
 
 class UserData(BaseModel):
     username: str
+    role: str
     account: str
     balance: float
     rate: Rate
@@ -94,7 +95,7 @@ class MessagesList(BaseModel):
 
 class Room(BaseModel):
     name: str
-    latest_message: str
+    latest_message: Message
 
 
 class Rooms(BaseModel):

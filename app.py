@@ -1,12 +1,8 @@
-import datetime
-import json
-import uuid
 from typing import Optional
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, HTTPException, Depends, status, BackgroundTasks, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
 from acquiring import pay_request, delete_bindings
 from db.app_db import init_db, store_refresh_token, add_user, is_refresh_token_valid, get_autopay, delete_autopay, \
@@ -144,9 +140,9 @@ async def get_accident(current_user: str = Depends(get_current_user)):
          responses={401: {"description": "Invalid access token"}, 500: {"description": "Internal server error"}},
          tags=['chat'])
 async def get_chat_messages(current_user: str = Depends(get_current_user),
-                            from_id: Optional[int] = Query(None, description='filters results from id (optional)')):
+                            less_id: Optional[int] = Query(None, description='filters results less than id (optional)')):
     # to_id: Optional[int] = Query(None, description='filters results to id (optional)')):
-    messages = await get_messages(room_id=current_user, get_from_id=from_id)
+    messages = await get_messages(room_id=current_user, less_id=less_id)
     return messages
 
 
@@ -156,7 +152,7 @@ async def get_chat_messages(current_user: str = Depends(get_current_user),
 async def post_new_user_message(message: Message, current_user: str = Depends(get_current_user)):
     if message.message:
         await add_message(current_user, message.role, message.message)
-    messages = await get_messages(room_id=current_user, post_from_id=message.id)
+    messages = await get_messages(room_id=current_user, greater_id=message.id)
     return messages
 
 
@@ -174,11 +170,11 @@ async def get_chat_rooms(current_user: str = Depends(get_current_user)):
          responses={401: {"description": "Invalid access token"}, 500: {"description": "Internal server error"}},
          tags=['rooms'])
 async def get_rooms_messages(room_id: Optional[str] = Query(None, description='room_id'),
-                             from_id: Optional[int] = Query(None, description='filters results from id (optional)'),
+                             less_id: Optional[int] = Query(None, description='filters results less than id (optional)'),
                              current_user: str = Depends(get_current_user)):
     if not await is_support(current_user):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect admin credentials")
-    messages = await get_messages(room_id=room_id, get_from_id=from_id)
+    messages = await get_messages(room_id=room_id, less_id=less_id)
     return messages
 
 
@@ -191,7 +187,7 @@ async def post_new_admin_message(message: NewAdminMessage,
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect admin credentials")
     if message.message:
         await add_message(message.room_id, message.role, message.message)
-    messages = await get_messages(room_id=message.room_id, post_from_id=message.from_id)
+    messages = await get_messages(room_id=message.room_id, greater_id=message.from_id)
     return messages
 
 

@@ -167,20 +167,20 @@ async def add_message(room_id: str, role: str, message: str):
         await db.commit()
 
 
-async def get_messages(room_id: str, get_from_id: int = None, post_from_id: int = None):
+async def get_messages(room_id: str, less_id: int = None, greater_id: int = None):
     query = "SELECT id, role, message, created_at FROM messages WHERE room_id = ?"
     params = [room_id]
 
-    if get_from_id is not None:
+    if less_id is not None:
         query += " AND id < ?"
-        params.append(get_from_id)
+        params.append(less_id)
     # else:
     #     query += " AND (? IS NULL OR id < ?)"
     #     params.extend([from_id, from_id])
 
-    if post_from_id is not None:
+    if greater_id is not None:
         query += " AND id > ?"
-        params.append(post_from_id)
+        params.append(greater_id)
     # else:
     #     query += " AND (? IS NULL OR id > ?)"
     #     params.extend([to_id, to_id])
@@ -194,27 +194,41 @@ async def get_messages(room_id: str, get_from_id: int = None, post_from_id: int 
 
 
 async def get_rooms():
-    # query = "SELECT DISTINCT room_id FROM messages"
     query = """SELECT
-                    room_id,
-                    (SELECT message
-                     FROM messages m2
-                     WHERE m2.room_id = m1.room_id
-                     ORDER BY created_at DESC
-                     LIMIT 1) AS latest_message,
-                    (SELECT created_at
-                     FROM messages m2
-                     WHERE m2.room_id = m1.room_id
-                     ORDER BY created_at DESC
-                     LIMIT 1) AS latest_message_created_at
-                FROM messages m1
-                GROUP BY room_id
-                ORDER BY latest_message_created_at DESC"""
+                    m1.room_id,
+                    m2.id AS _latest_message_id_,
+                    m2.role,
+                    m2.message AS _latest_message_,
+                    m2.created_at AS _latest_message_created_at_
+                FROM
+                    messages m1
+                    JOIN (
+                        SELECT
+                            room_id,
+                            id,
+                            role,
+                            message,
+                            created_at,
+                            ROW_NUMBER() OVER (PARTITION BY room_id ORDER BY created_at DESC) AS rn
+                        FROM
+                            messages
+                    ) m2 ON m1.room_id = m2.room_id AND m2.rn = 1
+                GROUP BY
+                    m1.room_id,
+                    m2.id,
+                    m2.role,
+                    m2.message,
+                    m2.created_at
+                ORDER BY
+                    _latest_message_created_at_ DESC"""
     async with aiosqlite.connect(DB_NAME) as db:
         async with db.execute(query, ) as cur:
             result = await cur.fetchall()
     room_instances = [Room(name=room[0],
-                           latest_message=room[1])
+                           latest_message=Message(id=room[1],
+                                                  role=room[2],
+                                                  message=room[3],
+                                                  created=int(room[4])))
                       for room in result]
     return Rooms(rooms=room_instances)
 

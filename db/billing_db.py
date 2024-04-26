@@ -299,12 +299,6 @@ async def get_group_id(account: str) -> int:
 
 
 async def get_user_data_new(account):
-    rate_cost = {
-        'Минимальный-15': '3550тг/мес',
-        'Стартовый-50': '4990тг/мес',
-        'Оптимальный-100': '5990тг/мес',
-        'Ускоренный-300': '6990тг/мес'
-    }
 
     rate_cost_int = {
         'Минимальный-15': 3550,
@@ -320,7 +314,6 @@ async def get_user_data_new(account):
             name = full_name
         return name
 
-    user_info = {'account': account}
     # SQL query
     user_sql = """
     SELECT 
@@ -363,19 +356,11 @@ async def get_user_data_new(account):
                 await cur.execute(user_sql, (account,))
                 user_data = await cur.fetchone()
                 if user_data:
-                    # user_info['full_name'] = _prettify_name(user_data['full_name']) if user_data['full_name'] else ''
-                    # user_info['phone'] = user_data['phone'] if user_data['phone'] else ''
-                    # user_info['address'] = user_data['address'] if user_data['address'] else ''
-                    # user_info['email'] = user_data['email'] if user_data['email'] else ''
                     rate_name = user_data['rate_name'] if user_data['rate_name'] else ''
-                    # rate_speed = user_data['rate_name'].split("-")[1] + 'Мбит/с' if user_data[
-                    #     'rate_name'] else ''
-                    # rate_cost = rate_cost[user_data['rate_name']] if user_data['rate_name'] else ''
                     balance = float(user_data['balance']) if user_data['balance'] else 0.00
                     min_payment = rate_cost_int[rate_name] - balance if rate_name else 0
-                    # user_info['min_pay'] = float(min_payment) if float(min_payment) > 0 else 0.00
-                    # user_info['pay_day'] = penultimate_date_of_current_month()
                     return UserData(username=_prettify_name(user_data['full_name']) if user_data['full_name'] else '',
+                                    role='user' if not await check_support(account) else 'support',
                                     account=account,
                                     balance=balance,
                                     rate=Rate(rate_name='',
@@ -383,7 +368,6 @@ async def get_user_data_new(account):
                                               rate_cost=''),
                                     min_pay=min_payment if min_payment > 0 else 0.00,
                                     pay_day=penultimate_date_of_current_month())
-    # return UserData
 
 
 async def get_user_data_old(account: str | int):
@@ -410,21 +394,12 @@ async def get_user_data_old(account: str | int):
             async with conn.cursor(aiomysql.DictCursor) as cur:
                 await cur.execute(user_query, (account,))
                 user_data = await cur.fetchone()
-                # print(user_data)
                 if user_data:
-                    # user_info['full_name'] = user_data['full_name'] if user_data['full_name'] else ''
-                    # user_info['phone'] = user_data['phone'] if user_data['phone'] else ''
-                    # user_info['address'] = ''  # user_data['address'] if user_data['address'] else ''
-                    # user_info['email'] = user_data['email'] if user_data['email'] else ''
-                    # rate_name = str(user_data['rate_name']) if user_data['rate_name'] else ''
-                    # user_info['rate_speed'] = ''  # user_data['rate_name'].split("-")[1] + 'Мбит/с' if user_data[
-                    # # 'rate_name'] else ''
                     rate_cost = user_data['rate_cost'] if user_data['rate_cost'] else 0.00
                     balance = round(user_data['balance'], 2) if user_data['balance'] else 0.00
                     min_payment = rate_cost - balance if rate_cost else 0.00
-                    # user_info['min_pay'] = min_payment if min_payment > 0 else 0.00
-                    # user_info['pay_day'] = penultimate_date_of_current_month()
                     return UserData(username=user_data['full_name'] if user_data['full_name'] else '',
+                                    role='user',
                                     account=account,
                                     balance=balance,
                                     rate=Rate(rate_name='',
@@ -432,7 +407,6 @@ async def get_user_data_old(account: str | int):
                                               rate_cost=''),
                                     min_pay=min_payment if min_payment > 0 else 0.00,
                                     pay_day=penultimate_date_of_current_month())
-            # return UserData.account
 
 
 async def get_user_data(account):
