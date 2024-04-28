@@ -9,7 +9,7 @@ from db.app_db import init_db, store_refresh_token, add_user, is_refresh_token_v
     get_accident_status, add_message, get_messages, get_rooms, get_group_news
 from db.billing_db import get_user_data, get_payments, update_password
 from schemas import User, Token, RefreshTokenRequest, UserData, HistoryPaymentsList, PasswordUpdate, News, Payment, \
-    PaymentAmount, AutoPayDetails, Accident, MessagesList, Message, Rooms, NewAdminMessage
+    PaymentAmount, AutoPayDetails, Accident, MessagesList, Message, Rooms, AdminMessage
 from service import authenticate_user, create_access_token, create_refresh_token, decode_token, get_current_user, \
     validate_password, is_support
 from tasks import check_payment_status, check_alerts, init_autopay
@@ -181,13 +181,13 @@ async def get_rooms_messages(room_id: Optional[str] = Query(None, description='r
 @app.post('/api/rooms/chat', response_model=MessagesList,
           responses={401: {"description": "Invalid access token"}, 500: {"description": "Internal server error"}},
           tags=['rooms'])
-async def post_new_admin_message(message: NewAdminMessage,
+async def post_new_admin_message(message: AdminMessage,
                                  current_user: str = Depends(get_current_user)):
     if not await is_support(current_user):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect admin credentials")
     if message.message:
         await add_message(message.room_id, message.role, message.message)
-    messages = await get_messages(room_id=message.room_id, greater_id=message.from_id)
+    messages = await get_messages(room_id=message.room_id, greater_id=message.id)
     return messages
 
 
