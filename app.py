@@ -140,9 +140,11 @@ async def get_accident(current_user: str = Depends(get_current_user)):
          responses={401: {"description": "Invalid access token"}, 500: {"description": "Internal server error"}},
          tags=['chat'])
 async def get_chat_messages(current_user: str = Depends(get_current_user),
-                            less_id: Optional[int] = Query(None, description='filters results less than id (optional)')):
-    # to_id: Optional[int] = Query(None, description='filters results to id (optional)')):
-    messages = await get_messages(room_id=current_user, less_id=less_id)
+                            greater_id: Optional[int] = Query(None,
+                                                              description='filters results greater than id (optional)'),
+                            less_id: Optional[int] = Query(None,
+                                                           description='filters results less than id (optional)')):
+    messages = await get_messages(room_id=current_user, greater_id=greater_id, less_id=less_id)
     return messages
 
 
@@ -170,11 +172,12 @@ async def get_chat_rooms(current_user: str = Depends(get_current_user)):
          responses={401: {"description": "Invalid access token"}, 500: {"description": "Internal server error"}},
          tags=['rooms'])
 async def get_rooms_messages(room_id: Optional[str] = Query(None, description='room_id'),
+                             greater_id: Optional[int] = Query(None, description='filters results greater than id (optional)'),
                              less_id: Optional[int] = Query(None, description='filters results less than id (optional)'),
                              current_user: str = Depends(get_current_user)):
     if not await is_support(current_user):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect admin credentials")
-    messages = await get_messages(room_id=room_id, less_id=less_id)
+    messages = await get_messages(room_id=room_id, greater_id=greater_id, less_id=less_id)
     return messages
 
 
