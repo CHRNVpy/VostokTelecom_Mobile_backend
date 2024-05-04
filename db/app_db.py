@@ -1,12 +1,15 @@
 import asyncio
 import calendar
+import json
 import os
 from datetime import datetime, timedelta
+from pprint import pprint
 
+import aiofiles
 import aiosqlite
 from dotenv import load_dotenv
 
-from db.billing_db import get_group_id
+from db.billing_db import get_group_id, get_user_data
 from schemas import MessagesList, Message, Room, Rooms, News, NewsArticle
 
 load_dotenv()
@@ -159,38 +162,54 @@ async def delete_autopay(user_id: str):
         await db.commit()
 
 
-async def add_message(room_id: str, role: str, message: str):
+async def add_message(room_id: str, role: str, message: str, type_tag: str | None):
     async with aiosqlite.connect(DB_NAME) as db:
         created_at = datetime.now().timestamp()
         await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, created_at) VALUES (?, ?, ?, ?)",
                          (room_id, role, message, created_at))
+        if type_tag == 'noInternet' and await get_accident_status(room_id):
+            message = 'Ожидайте восстановления, уже работаем'
+            await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, created_at) VALUES (?, ?, ?, ?)",
+                             (room_id, 'support', message, created_at))
+        elif type_tag == 'routerNotWork':
+            message = ('Перезагрузите ваш роутер:\n\n'
+                       '1. Отключить питание (выдернуть из розетки)\n'
+                       '2. Подождать 1,5 минуты\n'
+                       '3. Поключить питание')
+            await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, created_at) VALUES (?, ?, ?, ?)",
+                             (room_id, 'support', message, created_at))
+        elif type_tag == 'whenToPay':
+            pay_day = await get_user_data(room_id)
+            print(pay_day)
+            message = f'Следующая дата оплаты: {pay_day.pay_day}'
+            await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, created_at) VALUES (?, ?, ?, ?)",
+                             (room_id, 'support', message, created_at))
+        elif type_tag == 'requisites':
+            message = await get_requisites()
+            await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, created_at) VALUES (?, ?, ?, ?)",
+                             (room_id, 'support', message, created_at))
         await db.commit()
 
 
-async def get_messages(room_id: str, less_id: int = None, greater_id: int = None):
+async def get_messages(room_id: str, less_id: int = None, greater_id: int = None) -> MessagesList:
     query = "SELECT id, role, message, created_at FROM messages WHERE room_id = ?"
     params = [room_id]
 
     if less_id is not None:
         query += " AND id < ?"
         params.append(less_id)
-    # else:
-    #     query += " AND (? IS NULL OR id < ?)"
-    #     params.extend([from_id, from_id])
 
     if greater_id is not None:
         query += " AND id > ?"
         params.append(greater_id)
-    # else:
-    #     query += " AND (? IS NULL OR id > ?)"
-    #     params.extend([to_id, to_id])
+
     query += " ORDER BY created_at DESC LIMIT 20"
     async with aiosqlite.connect(DB_NAME) as db:
         async with db.execute(query, params) as cur:
             result = await cur.fetchall()
     message_instances = [Message(id=id, role=role, message=message, created=int(created))
-                         for id, role, message, created in result]
-    return MessagesList(messages=reversed(message_instances))
+                         for id, role, message, created in sorted(result)]
+    return MessagesList(messages=message_instances)
 
 
 async def get_rooms():
@@ -233,9 +252,6 @@ async def get_rooms():
     return Rooms(rooms=room_instances)
 
 
-# print(asyncio.run(get_rooms()))
-
-
 async def get_accounts():
     async with aiosqlite.connect(DB_NAME) as db:
         async with db.execute("SELECT user FROM refresh_tokens") as cursor:
@@ -269,6 +285,14 @@ async def set_accident_status(accounts: list) -> None:
                                  (1, account))
         await db.commit()
 
-# print(asyncio.run(get_autopay('11310')))
-# print(asyncio.run(get_accounts()))
-# print(asyncio.run(is_autopaid('0001')))
+
+async def get_requisites():
+    async with aiofiles.open('requisites.txt', mode='r') as file:
+        return await file.read()
+
+
+async def get_requisites_json():
+    async with aiofiles.open('requisites.json', mode='r') as file:
+        return json.loads(await file.read())
+
+# print(asyncio.run(get_requisites()))

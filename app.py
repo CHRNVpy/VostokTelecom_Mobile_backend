@@ -6,10 +6,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from acquiring import pay_request, delete_bindings
 from db.app_db import init_db, store_refresh_token, add_user, is_refresh_token_valid, get_autopay, delete_autopay, \
-    get_accident_status, add_message, get_messages, get_rooms, get_group_news
+    get_accident_status, add_message, get_messages, get_rooms, get_group_news, get_requisites_json
 from db.billing_db import get_user_data, get_payments, update_password
 from schemas import User, Token, RefreshTokenRequest, UserData, HistoryPaymentsList, PasswordUpdate, News, Payment, \
-    PaymentAmount, AutoPayDetails, Accident, MessagesList, Message, Rooms, AdminMessage
+    PaymentAmount, AutoPayDetails, Accident, MessagesList, Message, Rooms, SupportMessage, Company
 from service import authenticate_user, create_access_token, create_refresh_token, decode_token, get_current_user, \
     validate_password, is_support
 from tasks import check_payment_status, check_alerts, init_autopay
@@ -153,7 +153,7 @@ async def get_chat_messages(current_user: str = Depends(get_current_user),
           tags=['chat'])
 async def post_new_user_message(message: Message, current_user: str = Depends(get_current_user)):
     if message.message:
-        await add_message(current_user, message.role, message.message)
+        await add_message(current_user, message.role, message.message, message.type)
     messages = await get_messages(room_id=current_user, greater_id=message.id)
     return messages
 
@@ -172,8 +172,10 @@ async def get_chat_rooms(current_user: str = Depends(get_current_user)):
          responses={401: {"description": "Invalid access token"}, 500: {"description": "Internal server error"}},
          tags=['rooms'])
 async def get_rooms_messages(room_id: Optional[str] = Query(None, description='room_id'),
-                             greater_id: Optional[int] = Query(None, description='filters results greater than id (optional)'),
-                             less_id: Optional[int] = Query(None, description='filters results less than id (optional)'),
+                             greater_id: Optional[int] = Query(None,
+                                                               description='filters results greater than id (optional)'),
+                             less_id: Optional[int] = Query(None,
+                                                            description='filters results less than id (optional)'),
                              current_user: str = Depends(get_current_user)):
     if not await is_support(current_user):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect admin credentials")
@@ -184,7 +186,7 @@ async def get_rooms_messages(room_id: Optional[str] = Query(None, description='r
 @app.post('/api/rooms/chat', response_model=MessagesList,
           responses={401: {"description": "Invalid access token"}, 500: {"description": "Internal server error"}},
           tags=['rooms'])
-async def post_new_admin_message(message: AdminMessage,
+async def post_new_admin_message(message: SupportMessage,
                                  current_user: str = Depends(get_current_user)):
     if not await is_support(current_user):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect admin credentials")
@@ -192,6 +194,14 @@ async def post_new_admin_message(message: AdminMessage,
         await add_message(message.room_id, message.role, message.message)
     messages = await get_messages(room_id=message.room_id, greater_id=message.id)
     return messages
+
+
+@app.get("/api/requisites", response_model=Company,
+         responses={401: {"description": "Invalid access token"}, 500: {"description": "Internal server error"}},
+         tags=['requisites'])
+async def requisites(current_user: str = Depends(get_current_user)):
+    company_data = await get_requisites_json()
+    return Company(**company_data)
 
 
 @app.on_event("startup")
