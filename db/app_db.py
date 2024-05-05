@@ -240,6 +240,7 @@ async def get_rooms():
                     m2.id AS _latest_message_id_,
                     m2.role,
                     m2.message AS _latest_message_,
+                    m2.type_tag,
                     m2.created_at AS _latest_message_created_at_
                 FROM
                     messages m1
@@ -249,6 +250,7 @@ async def get_rooms():
                             id,
                             role,
                             message,
+                            type_tag,
                             created_at,
                             ROW_NUMBER() OVER (PARTITION BY room_id ORDER BY id DESC) AS rn
                         FROM
@@ -269,7 +271,8 @@ async def get_rooms():
                            latest_message=Message(id=room[1],
                                                   role=room[2],
                                                   message=room[3],
-                                                  created=int(room[4])))
+                                                  type=room[4],
+                                                  created=int(room[5])))
                       for room in result]
     return Rooms(rooms=room_instances)
 
