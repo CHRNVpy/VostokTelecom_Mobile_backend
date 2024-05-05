@@ -179,9 +179,8 @@ async def add_message(room_id: str, role: str, message: str, type_tag: str | Non
             await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, created_at) VALUES (?, ?, ?, ?)",
                              (room_id, 'support', message, created_at))
         elif type_tag == 'whenToPay':
-            pay_day = await get_user_data(room_id)
-            print(pay_day)
-            message = f'Следующая дата оплаты: {pay_day.pay_day}'
+            pay_day = penultimate_date_of_current_month()
+            message = f'Следующая дата оплаты: {pay_day.strftime("%d.%m.%Y")}'
             await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, created_at) VALUES (?, ?, ?, ?)",
                              (room_id, 'support', message, created_at))
         elif type_tag == 'requisites':
