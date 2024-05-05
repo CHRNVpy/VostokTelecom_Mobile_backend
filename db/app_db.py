@@ -177,7 +177,7 @@ async def add_message(room_id: str, role: str, message: str, type_tag: str | Non
             message = ('Перезагрузите ваш роутер:\n\n'
                        '1. Отключить питание (выдернуть из розетки)\n'
                        '2. Подождать 1,5 минуты\n'
-                       '3. Поключить питание')
+                       '3. Подключить питание')
             await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, type_tag, created_at) "
                              "VALUES (?, ?, ?, ?, ?)",
                              (room_id, 'support', message, 'autoResponse', created_at))

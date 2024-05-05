@@ -7,8 +7,8 @@ import time
 from pprint import pprint
 
 import aiohttp
-# import gspread
-# from oauth2client.service_account import ServiceAccountCredentials
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
 from acquiring import get_status_payment, pay_request, autopay_request
 from db.app_db import set_autopay, get_accounts, set_accident_status, get_autopay_users, add_news
@@ -88,44 +88,47 @@ async def check_alerts():
                 return response_json
 
     group_id_response = await zabbix_request(url, host_group_data)
-    host_groups_ids = [int(item['groupid']) for item in group_id_response['result'] if group_id_response['result']]
+    try:
+        host_groups_ids = [int(item['groupid']) for item in group_id_response['result'] if group_id_response['result']]
 
-    status_data = {
-        "jsonrpc": "2.0",
-        "method": "host.get",
-        "params": {
-            "output": ["name", "status"],
-            "selectHostGroups": "extend",
-            "groupids": host_groups_ids
-        },
-        "auth": os.getenv('zabbix_token'),
-        "id": 1
-    }
+        status_data = {
+            "jsonrpc": "2.0",
+            "method": "host.get",
+            "params": {
+                "output": ["name", "status"],
+                "selectHostGroups": "extend",
+                "groupids": host_groups_ids
+            },
+            "auth": os.getenv('zabbix_token'),
+            "id": 1
+        }
 
-    status_response = await zabbix_request(url, status_data)
-    affected_hostgroups = [item for item in status_response['result'] if int(item['status'])]
-    felix_names = [group['name'] for d in affected_hostgroups for group in d['hostgroups']
-                   if group['name'].startswith('felix')]
-    bgbilling_names = [group['name'] for d in affected_hostgroups for group in d['hostgroups']
-                       if group['name'].startswith('bgbilling')]
-    felix_accounts_to_notify = [account for name in felix_names for account in groups.get(name, [])]
-    bgbilling_accounts_to_notify = [account for name in bgbilling_names for account in groups.get(name, [])]
-    account_to_notify = felix_accounts_to_notify + bgbilling_accounts_to_notify
-    await set_accident_status(account_to_notify)
+        status_response = await zabbix_request(url, status_data)
+        affected_hostgroups = [item for item in status_response['result'] if int(item['status'])]
+        felix_names = [group['name'] for d in affected_hostgroups for group in d['hostgroups']
+                       if group['name'].startswith('felix')]
+        bgbilling_names = [group['name'] for d in affected_hostgroups for group in d['hostgroups']
+                           if group['name'].startswith('bgbilling')]
+        felix_accounts_to_notify = [account for name in felix_names for account in groups.get(name, [])]
+        bgbilling_accounts_to_notify = [account for name in bgbilling_names for account in groups.get(name, [])]
+        account_to_notify = felix_accounts_to_notify + bgbilling_accounts_to_notify
+        await set_accident_status(account_to_notify)
+    except KeyError:
+        pass
 
 
-# async def check_news():
-#     scope = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/drive.file',
-#              'https://www.googleapis.com/auth/spreadsheets']
-#
-#     creds = ServiceAccountCredentials.from_json_keyfile_name('peppy-tiger-374003-fa5a704f0d24.json', scope)
-#
-#     client = gspread.authorize(creds)
-#
-#     wks = client.open("vt54_news").sheet1
-#     all_rows = wks.get_all_values()
-#     for row in all_rows:
-#         if row[1].isdigit():
-#             await add_news(int(row[1]), row[2])
+async def check_news():
+    scope = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/drive.file',
+             'https://www.googleapis.com/auth/spreadsheets']
+
+    creds = ServiceAccountCredentials.from_json_keyfile_name('peppy-tiger-374003-fa5a704f0d24.json', scope)
+
+    client = gspread.authorize(creds)
+
+    wks = client.open("vt54_news").sheet1
+    all_rows = wks.get_all_values()
+    for row in all_rows:
+        if row[1].isdigit():
+            await add_news(int(row[1]), row[2])
 
 # asyncio.run(check_news())
