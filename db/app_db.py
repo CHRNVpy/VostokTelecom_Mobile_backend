@@ -188,6 +188,7 @@ async def add_message(room_id: str, role: str, message: str, type_tag: str | Non
                              "VALUES (?, ?, ?, ?, ?)",
                              (room_id, 'support', message, 'autoResponse', created_at))
         elif type_tag == 'requisites':
+            message = await get_requisites()
             await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, type_tag, created_at) "
                              "VALUES (?, ?, ?, ?, ?)",
                              (room_id, 'support', message, 'autoResponse', created_at))
