@@ -163,7 +163,7 @@ async def delete_autopay(user_id: str):
         await db.commit()
 
 
-async def add_message(room_id: str, role: str, message: str, type_tag: str | None):
+async def add_message(room_id: str, role: str, message: str, type_tag: str | None = None) -> None:
     async with aiosqlite.connect(DB_NAME) as db:
         created_at = datetime.now().timestamp()
         await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, created_at) VALUES (?, ?, ?, ?)",
