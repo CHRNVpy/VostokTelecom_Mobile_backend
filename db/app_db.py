@@ -62,6 +62,7 @@ async def init_db():
             "room_id TEXT, "
             "role TEXT, "
             "message TEXT, "
+            "type_tag TEXT, "
             "created_at INTEGER)"
         )
 
@@ -169,29 +170,37 @@ async def add_message(room_id: str, role: str, message: str, type_tag: str | Non
                          (room_id, role, message, created_at))
         if type_tag == 'noInternet' and await get_accident_status(room_id):
             message = 'Ожидайте восстановления, уже работаем'
-            await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, created_at) VALUES (?, ?, ?, ?)",
-                             (room_id, 'support', message, created_at))
+            await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, type_tag, created_at) "
+                             "VALUES (?, ?, ?, ?, ?)",
+                             (room_id, 'support', message, 'autoResponse', created_at))
         elif type_tag == 'routerNotWork':
             message = ('Перезагрузите ваш роутер:\n\n'
                        '1. Отключить питание (выдернуть из розетки)\n'
                        '2. Подождать 1,5 минуты\n'
                        '3. Поключить питание')
-            await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, created_at) VALUES (?, ?, ?, ?)",
-                             (room_id, 'support', message, created_at))
+            await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, type_tag, created_at) "
+                             "VALUES (?, ?, ?, ?, ?)",
+                             (room_id, 'support', message, 'autoResponse', created_at))
         elif type_tag == 'whenToPay':
             pay_day = penultimate_date_of_current_month()
             message = f'Следующая дата оплаты: {pay_day.strftime("%d.%m.%Y")}'
-            await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, created_at) VALUES (?, ?, ?, ?)",
-                             (room_id, 'support', message, created_at))
+            await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, type_tag, created_at) "
+                             "VALUES (?, ?, ?, ?, ?)",
+                             (room_id, 'support', message, 'autoResponse', created_at))
         elif type_tag == 'requisites':
-            message = await get_requisites()
-            await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, created_at) VALUES (?, ?, ?, ?)",
-                             (room_id, 'support', message, created_at))
+            await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, type_tag, created_at) "
+                             "VALUES (?, ?, ?, ?, ?)",
+                             (room_id, 'support', message, 'autoResponse', created_at))
+        elif type_tag in ['tvNotWork', 'deviceNotWork', 'support']:
+            message = 'Пожалуйста подождите, оператор скоро ответит...'
+            await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, type_tag, created_at) "
+                             "VALUES (?, ?, ?, ?, ?)",
+                             (room_id, 'support', message, 'autoResponseRequiresAction', created_at))
         await db.commit()
 
 
 async def get_messages(room_id: str, less_id: int = None, greater_id: int = None) -> MessagesList:
-    query = "SELECT id, role, message, created_at FROM messages WHERE room_id = ?"
+    query = "SELECT id, role, message, type_tag, created_at FROM messages WHERE room_id = ?"
     params = [room_id]
 
     if less_id is not None:
@@ -206,8 +215,8 @@ async def get_messages(room_id: str, less_id: int = None, greater_id: int = None
     async with aiosqlite.connect(DB_NAME) as db:
         async with db.execute(query, params) as cur:
             result = await cur.fetchall()
-    message_instances = [Message(id=id, role=role, message=message, created=int(created))
-                         for id, role, message, created in sorted(result)]
+    message_instances = [Message(id=id, role=role, message=message, type=type_tag, created=int(created))
+                         for id, role, message, type_tag, created in sorted(result)]
     return MessagesList(messages=message_instances)
 
 
