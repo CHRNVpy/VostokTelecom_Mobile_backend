@@ -11,7 +11,8 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
 from acquiring import get_status_payment, pay_request, autopay_request
-from db.app_db import set_autopay, get_accounts, set_accident_status, get_autopay_users, add_news
+from db.app_db import set_autopay, get_accounts, set_accident_status, get_autopay_users, add_news, news_exist, \
+    update_news
 from db.billing_db import update_user_balance_old, get_user_group_ids
 from dotenv import load_dotenv
 
@@ -127,8 +128,13 @@ async def check_news():
 
     wks = client.open("vt54_news").sheet1
     all_rows = wks.get_all_values()
-    for row in all_rows:
-        if row[1].isdigit():
-            await add_news(int(row[1]), row[2])
+    if await news_exist():
+        for row in all_rows:
+            if row[1].isdigit():
+                await update_news(int(row[1]), row[2])
+    else:
+        for row in all_rows:
+            if row[1].isdigit():
+                await add_news(int(row[1]), row[2])
 
 # asyncio.run(check_news())

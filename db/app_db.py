@@ -98,10 +98,23 @@ async def is_refresh_token_valid(refresh_token: str):
             return await cursor.fetchone() is not None
 
 
+async def news_exist():
+    async with aiosqlite.connect(DB_NAME) as db:
+        result = await db.execute("SELECT * FROM news")
+        return True if await result.fetchone() is not None else False
+
+
 async def add_news(group_id, message):
     async with aiosqlite.connect(DB_NAME) as db:
         await db.execute("INSERT OR IGNORE INTO news (group_id, message) VALUES (?, ?)",
-                         (group_id, message))
+                        (group_id, message))
+        await db.commit()
+
+
+async def update_news(group_id, message):
+    async with aiosqlite.connect(DB_NAME) as db:
+        await db.execute("UPDATE news SET message = ? WHERE group_id = ?",
+                         (message, group_id))
         await db.commit()
 
 
