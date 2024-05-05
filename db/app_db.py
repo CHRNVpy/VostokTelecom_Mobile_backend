@@ -250,7 +250,7 @@ async def get_rooms():
                             role,
                             message,
                             created_at,
-                            ROW_NUMBER() OVER (PARTITION BY room_id ORDER BY created_at DESC) AS rn
+                            ROW_NUMBER() OVER (PARTITION BY room_id ORDER BY id DESC) AS rn
                         FROM
                             messages
                     ) m2 ON m1.room_id = m2.room_id AND m2.rn = 1
