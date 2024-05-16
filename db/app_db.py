@@ -186,6 +186,11 @@ async def add_message(room_id: str, role: str, message: str, type_tag: str | Non
             await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, type_tag, created_at) "
                              "VALUES (?, ?, ?, ?, ?)",
                              (room_id, 'support', message, 'autoResponse', created_at))
+        elif type_tag == 'noInternet' and not await get_accident_status(room_id):
+            message = 'Пожалуйста подождите, оператор скоро ответит'
+            await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, type_tag, created_at) "
+                             "VALUES (?, ?, ?, ?, ?)",
+                             (room_id, 'support', message, 'autoResponse', created_at))
         elif type_tag == 'routerNotWork':
             message = ('Перезагрузите ваш роутер:\n\n'
                        '1. Отключить питание (выдернуть из розетки)\n'
@@ -206,7 +211,7 @@ async def add_message(room_id: str, role: str, message: str, type_tag: str | Non
                              "VALUES (?, ?, ?, ?, ?)",
                              (room_id, 'support', message, 'autoResponse', created_at))
         elif type_tag in ['tvNotWork', 'deviceNotWork', 'support']:
-            message = 'Пожалуйста подождите, оператор скоро ответит...'
+            message = 'Пожалуйста подождите, оператор скоро ответит'
             await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, type_tag, created_at) "
                              "VALUES (?, ?, ?, ?, ?)",
                              (room_id, 'support', message, 'autoResponseRequiresAction', created_at))
