@@ -1,6 +1,7 @@
 import calendar
 import json
 import os
+import time
 from datetime import datetime, timedelta
 from pprint import pprint
 from typing import Dict, Any, List
@@ -41,7 +42,7 @@ old_db_config = {
 }
 
 
-def penultimate_date_of_current_month():
+def penultimate_date_of_current_month() -> str:
     # Get the current date
     today = datetime.now()
     # Get the last day of the current month
@@ -49,6 +50,20 @@ def penultimate_date_of_current_month():
     # Calculate the penultimate date by subtracting one day from the last day
     penultimate_date = today.replace(day=last_day) - timedelta(days=1)
     formatted_date = penultimate_date.strftime("%d.%m.%Y")
+    return formatted_date
+
+
+def first_pay_day_to_next_pay_day(unix_timestamp: int) -> str:
+    struct_time = time.gmtime(unix_timestamp)
+
+    day = struct_time.tm_mday
+
+    now = datetime.now()
+    current_month = now.month
+    current_year = now.year
+
+    formatted_date = f"{day}.{current_month}.{current_year}"
+
     return formatted_date
 
 
@@ -299,7 +314,6 @@ async def get_group_id(account: str) -> int:
 
 
 async def get_user_data_new(account):
-
     rate_cost_int = {
         'Минимальный-15': 3550,
         'Стартовый-50': 4990,
@@ -388,13 +402,16 @@ async def get_user_data_old(account: str | int):
         account.email AS email, 
         account.balance AS balance,
         tariff.name AS rate_name,
-        tariff.price AS rate_cost
+        tariff.price AS rate_cost,
+        payment.date_open as first_pay_day
     FROM 
         account
     LEFT JOIN 
         account_service ON account_service.account_id = account.id
     LEFT JOIN 
         tariff ON tariff.id = account_service.tariff_id
+    LEFT JOIN
+        payment ON payment.account_id = account.id
     WHERE 
         account.login = %s
     LIMIT 1;
@@ -416,7 +433,7 @@ async def get_user_data_old(account: str | int):
                                               rate_speed='',
                                               rate_cost=''),
                                     min_pay=min_payment if min_payment > 0 else 0.00,
-                                    pay_day=penultimate_date_of_current_month())
+                                    pay_day=first_pay_day_to_next_pay_day(user_data['first_pay_day']))
 
 
 async def get_user_data(account):
