@@ -182,12 +182,12 @@ async def add_message(room_id: str, role: str, message: str, type_tag: str | Non
         await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, created_at) VALUES (?, ?, ?, ?)",
                          (room_id, role, message, created_at))
         if type_tag == 'noInternet' and await get_accident_status(room_id):
-            message = 'Ожидайте восстановления, уже работаем'
+            message = 'Ожидайте восстановления, уже работаем.'
             await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, type_tag, created_at) "
                              "VALUES (?, ?, ?, ?, ?)",
                              (room_id, 'support', message, 'autoResponse', created_at))
         elif type_tag == 'noInternet' and not await get_accident_status(room_id):
-            message = 'Пожалуйста подождите, оператор скоро ответит'
+            message = 'Пожалуйста, подождите, оператор скоро ответит.'
             await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, type_tag, created_at) "
                              "VALUES (?, ?, ?, ?, ?)",
                              (room_id, 'support', message, 'autoResponse', created_at))
@@ -211,7 +211,7 @@ async def add_message(room_id: str, role: str, message: str, type_tag: str | Non
                              "VALUES (?, ?, ?, ?, ?)",
                              (room_id, 'support', message, 'autoResponse', created_at))
         elif type_tag in ['tvNotWork', 'deviceNotWork', 'support']:
-            message = 'Пожалуйста подождите, оператор скоро ответит'
+            message = 'Пожалуйста, подождите, оператор скоро ответит.'
             await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, type_tag, created_at) "
                              "VALUES (?, ?, ?, ?, ?)",
                              (room_id, 'support', message, 'autoResponseRequiresAction', created_at))
