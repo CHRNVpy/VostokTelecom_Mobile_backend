@@ -9,7 +9,7 @@ import aiofiles
 import aiosqlite
 from dotenv import load_dotenv
 
-from db.billing_db import get_group_id, get_user_data
+from db.billing_db import get_group_id, get_user_data, get_user_data_old
 from schemas import MessagesList, Message, Room, Rooms, News, NewsArticle
 
 load_dotenv()
@@ -177,6 +177,15 @@ async def delete_autopay(user_id: str):
 
 
 async def add_message(room_id: str, role: str, message: str, type_tag: str | None = None) -> None:
+
+    async def _when_to_pay(account: str):
+        match len(account):
+            case 4:
+                day = await get_user_data_old(account)
+                return day.pay_day
+            case 5:
+                return penultimate_date_of_current_month().strftime("%d.%m.%Y")
+
     async with aiosqlite.connect(DB_NAME) as db:
         created_at = datetime.now().timestamp()
         await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, created_at) VALUES (?, ?, ?, ?)",
@@ -200,8 +209,8 @@ async def add_message(room_id: str, role: str, message: str, type_tag: str | Non
                              "VALUES (?, ?, ?, ?, ?)",
                              (room_id, 'support', message, 'autoResponse', created_at))
         elif type_tag == 'whenToPay':
-            pay_day = penultimate_date_of_current_month()
-            message = f'Следующая дата оплаты: {pay_day.strftime("%d.%m.%Y")}'
+            pay_day = await _when_to_pay(room_id)
+            message = f'Следующая дата оплаты: {pay_day}'
             await db.execute("INSERT OR IGNORE INTO messages (room_id, role, message, type_tag, created_at) "
                              "VALUES (?, ?, ?, ?, ?)",
                              (room_id, 'support', message, 'autoResponse', created_at))
