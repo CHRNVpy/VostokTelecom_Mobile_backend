@@ -53,17 +53,8 @@ def penultimate_date_of_current_month() -> str:
     return formatted_date
 
 
-def first_pay_day_to_next_pay_day(unix_timestamp: int) -> str:
-    struct_time = time.gmtime(unix_timestamp)
-
-    day = struct_time.tm_mday
-
-    now = datetime.now()
-    current_month = now.month
-    current_year = now.year
-
-    formatted_date = f"{day}.{current_month}.{current_year}"
-
+def next_pay_day(unix_timestamp: int) -> str:
+    formatted_date = datetime.fromtimestamp(unix_timestamp).strftime("%d.%m.%Y")
     return formatted_date
 
 
@@ -396,23 +387,27 @@ async def get_user_data_new(account):
 
 async def get_user_data_old(account: str | int):
     user_query = """
-    SELECT 
-        CONCAT(account.last_name, ' ', account.first_name, ' ', account.patronymic) AS full_name,
-        account.cell_phone1 AS phone, 
-        account.email AS email, 
-        account.balance AS balance,
-        tariff.name AS rate_name,
-        tariff.price AS rate_cost,
-        payment.date_open as first_pay_day
-    FROM 
+    SELECT
+    CONCAT(account.last_name, ' ', account.first_name, ' ', account.patronymic) AS full_name,
+    account.cell_phone1 AS phone,
+    account.email AS email,
+    account.balance AS balance,
+    tariff.name AS rate_name,
+    tariff.price AS rate_cost,
+        (
+            SELECT date_close
+            FROM payment
+            WHERE account_id = account.id
+            ORDER BY date_close DESC
+            LIMIT 1
+        ) AS pay_day
+    FROM
         account
-    LEFT JOIN 
-        account_service ON account_service.account_id = account.id
-    LEFT JOIN 
-        tariff ON tariff.id = account_service.tariff_id
     LEFT JOIN
-        payment ON payment.account_id = account.id
-    WHERE 
+        account_service ON account_service.account_id = account.id
+    LEFT JOIN
+        tariff ON tariff.id = account_service.tariff_id
+    WHERE
         account.login = %s
     LIMIT 1;
     """
@@ -433,7 +428,7 @@ async def get_user_data_old(account: str | int):
                                               rate_speed='',
                                               rate_cost=''),
                                     min_pay=min_payment if min_payment > 0 else 0.00,
-                                    pay_day=first_pay_day_to_next_pay_day(user_data['first_pay_day']))
+                                    pay_day=next_pay_day(user_data['pay_day']))
 
 
 async def get_user_data(account):
