@@ -15,13 +15,13 @@ from service import authenticate_user, create_access_token, create_refresh_token
     validate_password, is_support
 from tasks import check_payment_status, check_alerts, init_autopay, check_news
 
-app = FastAPI(title='VostokTelekom Mobile API', description='BASE URL >> https://mobile.vt54.ru', docs_url=':8001/docs',
-              redoc_url=':8001/redoc', openapi_url=':8001/openapi.json', contact='https://t.me/chrnv_dev')
+app = FastAPI(title='VostokTelekom Mobile API', description='BASE URL >> https://mobile.vt54.ru', docs_url='/docs',
+              redoc_url='/redoc', openapi_url='/openapi.json', contact='https://t.me/chrnv_dev')
 scheduler = AsyncIOScheduler()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://mobile.vt54.ru:3000"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
     allow_headers=["*"],
@@ -211,11 +211,11 @@ async def startup_event():
     await init_db()
     scheduler.start()
     scheduler.add_job(check_news, trigger='interval', days=1, max_instances=1,
-                      next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=5))
+                      next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=60))
     scheduler.add_job(check_alerts, trigger='interval', hours=1, max_instances=1,
-                      next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=30))
+                      next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=60))
     scheduler.add_job(init_autopay, trigger='interval', days=1, max_instances=1,
-                      next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=30))
+                      next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=60))
 
 
 @app.on_event("shutdown")
