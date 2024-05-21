@@ -15,13 +15,12 @@ from service import authenticate_user, create_access_token, create_refresh_token
     validate_password, is_support
 from tasks import check_payment_status, check_alerts, init_autopay, check_news
 
-app = FastAPI(title='VostokTelekom Mobile API', description='BASE URL >> https://mobile.vt54.ru', docs_url='/docs',
-              redoc_url='/redoc', openapi_url='/openapi.json', contact='https://t.me/chrnv_dev')
+app = FastAPI(title='VostokTelekom Mobile API', description='BASE URL >> https://mobile.vt54.ru')
 scheduler = AsyncIOScheduler()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://mobile.vt54.ru:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
     allow_headers=["*"],
