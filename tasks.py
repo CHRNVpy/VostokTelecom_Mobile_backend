@@ -67,7 +67,9 @@ async def init_autopay():
 async def check_alerts():
     # print("Checking alerts enabled")
     accounts = await get_accounts()
+    print(accounts)
     groups = await get_user_group_ids(accounts)
+    print(groups)
     url = 'https://zabbix2.vt54.ru/zabbix/api_jsonrpc.php'
     host_group_data = {
         "jsonrpc": "2.0",
@@ -89,6 +91,7 @@ async def check_alerts():
                 return response_json
 
     group_id_response = await zabbix_request(url, host_group_data)
+    print(group_id_response)
     try:
         host_groups_ids = [int(item['groupid']) for item in group_id_response['result'] if group_id_response['result']]
 
@@ -131,10 +134,10 @@ async def check_news():
     if await news_exist():
         for row in all_rows:
             if row[1].isdigit():
-                await update_news(int(row[1]), row[2])
+                await update_news(int(row[1]), row[0], row[2])
     else:
         for row in all_rows:
             if row[1].isdigit():
-                await add_news(int(row[1]), row[2])
+                await add_news(int(row[1]), row[0], row[2])
 
 # asyncio.run(check_news())

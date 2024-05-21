@@ -277,23 +277,36 @@ async def get_user_group_ids(accounts: dict) -> dict[Any, list[Any]]:
 
 
 async def get_group_id_old(account: str) -> int:
-    sql_query = """SELECT acc_group_id FROM account WHERE login = %s"""
+    sql_query = """
+    SELECT 
+        acc_group_id AS group_id,
+        acc_group.name AS location
+    FROM account
+    LEFT JOIN
+        acc_group ON acc_group.id = account.acc_group_id
+    WHERE login = %s"""
     async with aiomysql.create_pool(**old_db_config) as pool:
         async with pool.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(sql_query, (account,))
                 result = await cur.fetchone()
-                return result[0]
+                return result
 
 
 async def get_group_id_new(account: str) -> int:
-    sql_query = """SELECT gr FROM contract WHERE title = %s"""
+    sql_query = """
+    SELECT
+        gr AS group_id,
+        contract_group.title AS location
+    FROM contract
+    LEFT JOIN contract_group ON contract_group.id = contract.gr
+    WHERE contract.title = %s"""
     async with aiomysql.create_pool(**db_config) as pool:
         async with pool.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(sql_query, (account,))
                 result = await cur.fetchone()
-                return result[0]
+                return result
 
 
 async def get_group_id(account: str) -> int:

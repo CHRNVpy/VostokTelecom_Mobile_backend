@@ -70,6 +70,7 @@ async def init_db():
             "CREATE TABLE IF NOT EXISTS news ("
             "id INTEGER PRIMARY KEY AUTOINCREMENT, "
             "group_id INTEGER, "
+            "location TEXT, "
             "message TEXT)"
         )
 
@@ -104,24 +105,25 @@ async def news_exist():
         return True if await result.fetchone() is not None else False
 
 
-async def add_news(group_id, message):
+async def add_news(group_id, location, message):
     async with aiosqlite.connect(DB_NAME) as db:
-        await db.execute("INSERT OR IGNORE INTO news (group_id, message) VALUES (?, ?)",
-                        (group_id, message))
+        await db.execute("INSERT OR IGNORE INTO news (group_id, location, message) VALUES (?, ?, ?)",
+                        (group_id, location, message))
         await db.commit()
 
 
-async def update_news(group_id, message):
+async def update_news(group_id, location, message):
     async with aiosqlite.connect(DB_NAME) as db:
-        await db.execute("UPDATE news SET message = ? WHERE group_id = ?",
-                         (message, group_id))
+        await db.execute("UPDATE news SET message = ? WHERE group_id = ? AND location = ?",
+                         (message, group_id, location))
         await db.commit()
 
 
 async def get_group_news(account: str) -> News:
-    group_id = await get_group_id(account)
+    group_id, location = await get_group_id(account)
     async with aiosqlite.connect(DB_NAME) as db:
-        async with db.execute("SELECT message FROM news WHERE group_id = ?", (group_id,)) as cur:
+        async with db.execute("SELECT message FROM news WHERE group_id = ? AND location = ?",
+                              (group_id, location)) as cur:
             result = await cur.fetchall()
             return News(news=[NewsArticle(article=item[0]) for item in result])
 

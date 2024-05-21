@@ -15,7 +15,8 @@ from service import authenticate_user, create_access_token, create_refresh_token
     validate_password, is_support
 from tasks import check_payment_status, check_alerts, init_autopay, check_news
 
-app = FastAPI(title='VostokTelekom Mobile API', description='BASE URL >> https://mobile.vt54.ru')
+app = FastAPI(title='VostokTelekom Mobile API', description='BASE URL >> https://mobile.vt54.ru', docs_url='/api/docs',
+              redoc_url='/api/redoc', contact='https://t.me/chrnv_dev')
 scheduler = AsyncIOScheduler()
 
 app.add_middleware(
