@@ -125,7 +125,7 @@ async def check_news():
     scope = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/drive.file',
              'https://www.googleapis.com/auth/spreadsheets']
 
-    creds = ServiceAccountCredentials.from_json_keyfile_name('peppy-tiger-374003-fa5a704f0d24.json', scope)
+    creds = ServiceAccountCredentials.from_json_keyfile_name('silent-octagon-424010-u2-c1a2193df58b.json', scope)
 
     client = gspread.authorize(creds)
 

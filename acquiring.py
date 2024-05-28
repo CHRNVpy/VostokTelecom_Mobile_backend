@@ -16,7 +16,7 @@ PASSWORD = os.getenv('BANK_PASS')
 async def pay_request(amount_rubles, auto_payment=False, client_id=None):
     order_number = str(uuid.uuid4())
     amount_kopecks = amount_rubles * 100
-    url = 'https://alfa.rbsuat.com/payment/rest/register.do'
+    url = 'https://pay.alfabank.ru/payment/rest/register.do'
     params = {
         'userName': USER,
         'password': PASSWORD,
@@ -39,7 +39,7 @@ async def pay_request(amount_rubles, auto_payment=False, client_id=None):
 
 
 async def autopay_request(order_id, binding_id, client_ip):
-    url = 'https://alfa.rbsuat.com/payment/rest/paymentOrderBinding.do'
+    url = 'https://pay.alfabank.ru/payment/rest/paymentOrderBinding.do'
     params = {
         'userName': USER,
         'password': PASSWORD,
@@ -58,7 +58,7 @@ async def autopay_request(order_id, binding_id, client_ip):
 
 
 async def get_status_payment(order_id):
-    url = 'https://alfa.rbsuat.com/payment/rest/getOrderStatus.do'
+    url = 'https://pay.alfabank.ru/payment/rest/getOrderStatus.do'
     params = {
         'userName': USER,
         'password': PASSWORD,
@@ -74,7 +74,7 @@ async def get_status_payment(order_id):
 
 
 async def get_bindings(client_id):
-    url = 'https://alfa.rbsuat.com/payment/rest/getBindings.do'
+    url = 'https://pay.alfabank.ru/payment/rest/getBindings.do'
     params = {
         'userName': USER,
         'password': PASSWORD,
@@ -89,7 +89,7 @@ async def get_bindings(client_id):
 
 
 async def delete_binding(session, binding_id):
-    url = 'https://alfa.rbsuat.com/payment/rest/unBindCard.do'
+    url = 'https://pay.alfabank.ru/payment/rest/unBindCard.do'
     params = {
         'userName': USER,
         'password': PASSWORD,
