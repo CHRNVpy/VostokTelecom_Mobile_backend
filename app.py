@@ -100,7 +100,7 @@ async def get_news(current_user: str = Depends(get_current_user)):
           responses={401: {"description": "Invalid access token"}}, tags=['payments'])
 async def process_payment(request: PaymentAmount,
                           background_tasks: BackgroundTasks, current_user: str = Depends(get_current_user)):
-    response = await pay_request(request.amount_roubles)
+    response = await pay_request(request.amount_roubles, client_id=current_user)
     background_tasks.add_task(check_payment_status, response['orderId'], current_user, autopay=False)
     return response
 

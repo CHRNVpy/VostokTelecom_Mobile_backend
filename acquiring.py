@@ -24,7 +24,8 @@ async def pay_request(amount_rubles, auto_payment=False, client_id=None):
         'amount': amount_kopecks,
         'returnUrl': 'https://mobile.vt54.ru/top-up/done',
         'failUrl': 'https://mobile.vt54.ru/top-up/fail',
-        'pageView': 'MOBILE'
+        'pageView': 'MOBILE',
+        'description': client_id
     }
 
     if auto_payment:
