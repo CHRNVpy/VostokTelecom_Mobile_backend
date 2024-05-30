@@ -485,10 +485,51 @@ async def update_user_balance_old(account: str | int, payment_amount: float, ord
                 await conn.rollback()  # Rollback the transaction on error
                 raise e
 
-# async def update_balance_old():
-# pprint(asyncio.run(get_user('support')))
-# print(asyncio.run(get_payments(11816)))
-# print(asyncio.run(get_user_data_old('0010')))
-# asyncio.run(update_user_balance_old('0000', 100.00))
-# asyncio.run(update_user_balance_old('0000', 100.00, '111-222-333-444-999'))
-# print(asyncio.run(get_user_group_id_new(['11310'])))
+
+async def get_user_location_old(account):
+    location_query = """
+    SELECT
+        acc_group.id AS location_id,
+        acc_group.name AS location
+    FROM account
+    LEFT JOIN
+        acc_group ON acc_group.id = account.acc_group_id
+    WHERE
+        account.login = %s
+    LIMIT 1;
+    """
+    async with aiomysql.create_pool(**old_db_config) as pool:
+        async with pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(location_query, (account,))
+                location = await cur.fetchone()
+                return location
+
+
+async def get_user_location_new(account):
+    location_query = """
+        SELECT 
+            contract_group.id AS location_id,
+            contract_group.title AS location
+        FROM contract
+        LEFT JOIN
+            contract_group ON contract_group.id = contract.gr
+        WHERE
+            contract.title = %s
+        LIMIT 1;
+        """
+    async with aiomysql.create_pool(**db_config) as pool:
+        async with pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(location_query, (account,))
+                location = await cur.fetchone()
+                return location
+
+
+async def get_user_location(account):
+    match len(account):
+        case 4:
+            location = await get_user_location_old(account)
+        case length if length >= 5:
+            location = await get_user_location_new(account)
+    return location

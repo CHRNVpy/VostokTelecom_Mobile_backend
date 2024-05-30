@@ -13,7 +13,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 from acquiring import get_status_payment, pay_request, autopay_request
 from db.app_db import set_autopay, get_accounts, set_accident_status, get_autopay_users, add_news, news_exist, \
     update_news
-from db.billing_db import update_user_balance_old, get_user_group_ids
+from db.billing_db import update_user_balance_old, get_user_group_ids, get_user_location
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -67,9 +67,9 @@ async def init_autopay():
 async def check_alerts():
     # print("Checking alerts enabled")
     accounts = await get_accounts()
-    print(accounts)
+    # print(accounts)
     groups = await get_user_group_ids(accounts)
-    print(groups)
+    # print(groups)
     url = 'https://zabbix2.vt54.ru/zabbix/api_jsonrpc.php'
     host_group_data = {
         "jsonrpc": "2.0",
@@ -89,9 +89,9 @@ async def check_alerts():
             async with session.get(url, json=data) as response:
                 response_json = await response.json()
                 return response_json
-
+    # pprint(host_group_data)
     group_id_response = await zabbix_request(url, host_group_data)
-    print(group_id_response)
+    # print(group_id_response)
     try:
         host_groups_ids = [int(item['groupid']) for item in group_id_response['result'] if group_id_response['result']]
 
@@ -106,17 +106,25 @@ async def check_alerts():
             "auth": os.getenv('zabbix_token'),
             "id": 1
         }
-
+        # pprint(status_data)
         status_response = await zabbix_request(url, status_data)
+        # pprint(status_response)
         affected_hostgroups = [item for item in status_response['result'] if int(item['status'])]
+        # print(affected_hostgroups)
         felix_names = [group['name'] for d in affected_hostgroups for group in d['hostgroups']
                        if group['name'].startswith('felix')]
         bgbilling_names = [group['name'] for d in affected_hostgroups for group in d['hostgroups']
                            if group['name'].startswith('bgbilling')]
         felix_accounts_to_notify = [account for name in felix_names for account in groups.get(name, [])]
         bgbilling_accounts_to_notify = [account for name in bgbilling_names for account in groups.get(name, [])]
-        account_to_notify = felix_accounts_to_notify + bgbilling_accounts_to_notify
-        await set_accident_status(account_to_notify)
+        accounts_to_notify = felix_accounts_to_notify + bgbilling_accounts_to_notify
+        print('Accounts to notify: ', accounts_to_notify)
+        if accounts_to_notify:
+            await set_accident_status(accounts_to_notify)
+            # setting alert news message to affected acoounts
+            alert_message = "На линии авария, но мы уже над этим работаем !"
+            await asyncio.gather(*[update_news((location := await get_user_location(account))['location_id'],
+                                               location['location'], alert_message) for account in accounts_to_notify])
     except KeyError:
         pass
 
@@ -140,4 +148,4 @@ async def check_news():
             if row[1].isdigit():
                 await add_news(int(row[1]), row[0], row[2])
 
-# asyncio.run(check_news())
+# asyncio.run(check_alerts())
