@@ -209,7 +209,7 @@ async def requisites(current_user: str = Depends(get_current_user)):
 async def startup_event():
     await init_db()
     scheduler.start()
-    scheduler.add_job(check_news, trigger='interval', days=1, max_instances=1,
+    scheduler.add_job(check_news, trigger='interval', hours=1, max_instances=1,
                       next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=60))
     scheduler.add_job(check_alerts, trigger='interval', hours=1, max_instances=1,
                       next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=60))
