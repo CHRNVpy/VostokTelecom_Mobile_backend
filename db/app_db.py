@@ -455,7 +455,7 @@ async def set_accident_status(accounts: list) -> None:
                 await cursor.execute("UPDATE alerts SET status = %s", (0,))
 
                 for account in accounts:
-                    current_status = await get_accident_status(pool, account)
+                    current_status = await get_accident_status(account)
                     if not current_status:
                         await cursor.execute("INSERT IGNORE INTO alerts (user, status) VALUES (%s, %s)",
                                              (account, 1))
