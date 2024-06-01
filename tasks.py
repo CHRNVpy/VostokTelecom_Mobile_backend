@@ -176,4 +176,4 @@ async def check_news():
             if row[1].isdigit():
                 await add_news(int(row[1]), row[0], row[2])
 
-asyncio.run(check_alerts())
+# asyncio.run(check_alerts())
