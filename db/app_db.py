@@ -435,7 +435,7 @@ async def get_accounts():
                 return {"old": old_accounts, "new": new_accounts}
 
 
-async def get_accident_status(pool, account: str):
+async def get_accident_status(account: str):
     async with aiomysql.create_pool(**app_db_config) as pool:
         async with pool.acquire() as conn:
             async with conn.cursor() as cursor:
@@ -448,7 +448,7 @@ async def get_accident_status(pool, account: str):
                     return False
 
 
-async def set_accident_status(pool, accounts: list) -> None:
+async def set_accident_status(accounts: list) -> None:
     async with aiomysql.create_pool(**app_db_config) as pool:
         async with pool.acquire() as conn:
             async with conn.cursor() as cursor:
