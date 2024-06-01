@@ -90,6 +90,7 @@ async def check_alerts():
                 response_json = await response.json()
                 return response_json
     # pprint(host_group_data)
+
     group_id_response = await zabbix_request(url, host_group_data)
     # print(group_id_response)
     try:
@@ -106,19 +107,46 @@ async def check_alerts():
             "auth": os.getenv('zabbix_token'),
             "id": 1
         }
+
         # pprint(status_data)
         status_response = await zabbix_request(url, status_data)
         # pprint(status_response)
-        affected_hostgroups = [item for item in status_response['result'] if int(item['status'])]
+
+        host_ids = [host['hostid'] for host in status_response['result'] if status_response['result']]
+        # print(host_ids)
+
+        dev_status = {
+            "jsonrpc": "2.0",
+            "method": "hostinterface.get",
+            "params": {
+                "output": ["available", "hostid"],
+                "hostids": host_ids
+            },
+            "auth": os.getenv('zabbix_token'),
+            "id": 1
+        }
+
+        dev_status_response = await zabbix_request(url, dev_status)
+        # pprint(dev_status_response)
+
+        affected_hostids = [host['hostid'] for host in dev_status_response['result']
+                            if dev_status_response['result'] and int(host['available']) == 2]
+        # print(affected_hostids)
+
+        affected_hostgroups = [item for item in status_response['result'] if item['hostid'] in affected_hostids]
         # print(affected_hostgroups)
+
         felix_names = [group['name'] for d in affected_hostgroups for group in d['hostgroups']
                        if group['name'].startswith('felix')]
         bgbilling_names = [group['name'] for d in affected_hostgroups for group in d['hostgroups']
                            if group['name'].startswith('bgbilling')]
+
         felix_accounts_to_notify = [account for name in felix_names for account in groups.get(name, [])]
         bgbilling_accounts_to_notify = [account for name in bgbilling_names for account in groups.get(name, [])]
+
         accounts_to_notify = felix_accounts_to_notify + bgbilling_accounts_to_notify
-        print('Accounts to notify: ', accounts_to_notify)
+        # print('Accounts to notify: ', accounts_to_notify)
+
         if accounts_to_notify:
             await set_accident_status(accounts_to_notify)
             # setting alert news message to affected acoounts
@@ -148,4 +176,4 @@ async def check_news():
             if row[1].isdigit():
                 await add_news(int(row[1]), row[0], row[2])
 
-# asyncio.run(check_alerts())
+asyncio.run(check_alerts())
