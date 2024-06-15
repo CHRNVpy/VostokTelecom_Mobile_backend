@@ -41,6 +41,15 @@ def penultimate_date_of_current_month():
     return penultimate_date
 
 
+async def _when_to_pay(account: str):
+    match len(account):
+        case 4:
+            day = await get_user_data_old(account)
+            return day.pay_day
+        case 5:
+            return penultimate_date_of_current_month().strftime("%d.%m.%Y")
+
+
 # async def init_db():
 #     async with aiosqlite.connect(DB_NAME) as db:
 #         await db.execute(
@@ -295,15 +304,6 @@ async def delete_autopay(user_id: str):
 
 
 async def add_message(room_id: str, role: str, message: str, type_tag: Optional[str] = None) -> None:
-
-    async def _when_to_pay(account: str):
-        match len(account):
-            case 4:
-                day = await get_user_data_old(account)
-                return day.pay_day
-            case 5:
-                return penultimate_date_of_current_month().strftime("%d.%m.%Y")
-
     async with aiomysql.create_pool(**app_db_config) as pool:
         async with pool.acquire() as conn:
             async with conn.cursor() as cur:

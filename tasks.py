@@ -12,7 +12,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 from acquiring import get_status_payment, pay_request, autopay_request
 from db.app_db import set_autopay, get_accounts, set_accident_status, get_autopay_users, add_news, news_exist, \
-    update_news
+    update_news, _when_to_pay
 from db.billing_db import update_user_balance_old, get_user_group_ids, get_user_location
 from dotenv import load_dotenv
 
@@ -64,6 +64,30 @@ async def init_autopay():
             await check_payment_status(pay_response['orderId'], user_id, autopay=True)
 
 
+async def push(message, account):
+    print(message, account)
+    headers = {
+        'Authorization': f'Basic {os.getenv("push_api_key")}',
+        'accept': 'application/json',
+        'content-type': 'application/json',
+    }
+
+    data = {
+        "app_id": f"{os.getenv('push_app_id')}",
+        # "included_segments": ["All"],
+        "contents": {
+            "en": "English Message",
+            "ru": message},
+        "target_channel": "push",
+        "include_aliases": {"external_id": [account]},
+    }
+
+    json_data = json.dumps(data)
+
+    async with aiohttp.ClientSession() as session:
+        await session.post('https://onesignal.com/api/v1/notifications', headers=headers, data=json_data)
+
+
 async def check_alerts():
     # print("Checking alerts enabled")
     accounts = await get_accounts()
@@ -89,6 +113,7 @@ async def check_alerts():
             async with session.get(url, json=data) as response:
                 response_json = await response.json()
                 return response_json
+
     # pprint(host_group_data)
 
     group_id_response = await zabbix_request(url, host_group_data)
@@ -146,6 +171,7 @@ async def check_alerts():
 
         accounts_to_notify = felix_accounts_to_notify + bgbilling_accounts_to_notify
         # print('Accounts to notify: ', accounts_to_notify)
+        # accounts_to_notify = ["0000"]
 
         if accounts_to_notify:
             await set_accident_status(accounts_to_notify)
@@ -153,6 +179,7 @@ async def check_alerts():
             alert_message = "На линии авария, но мы уже над этим работаем !"
             await asyncio.gather(*[update_news((location := await get_user_location(account))['location_id'],
                                                location['location'], alert_message) for account in accounts_to_notify])
+            await asyncio.gather(*[push(alert_message, account) for account in accounts_to_notify])
     except KeyError:
         pass
 
@@ -177,8 +204,20 @@ async def check_news():
                 await add_news(int(row[1]), row[0], row[2])
 
 
+async def pay_day_push():
+    accounts = await get_accounts()
+    accounts_list = [v for v in accounts.values() for v in v]
+    yesterday = (datetime.datetime.now().date() - datetime.timedelta(days=1)).strftime('%d.%m.%Y')
+    for account in accounts_list:
+        account_pay_day = await _when_to_pay(account)
+        if yesterday == account_pay_day:
+            message = f'{account_pay_day} списание абонентской платы по вашему тарифу, не забудьте пополнить баланс !'
+            await push(message, account)
+
+
 async def check_news_alerts():
     await check_news()
     await check_alerts()
+
 
 # asyncio.run(check_alerts())

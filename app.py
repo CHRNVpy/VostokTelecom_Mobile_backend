@@ -13,7 +13,7 @@ from schemas import User, Token, RefreshTokenRequest, UserData, HistoryPaymentsL
     PaymentAmount, AutoPayDetails, Accident, MessagesList, Message, Rooms, SupportMessage, Company
 from service import authenticate_user, create_access_token, create_refresh_token, decode_token, get_current_user, \
     validate_password, is_support
-from tasks import check_payment_status, init_autopay, check_news_alerts
+from tasks import check_payment_status, init_autopay, check_news_alerts, pay_day_push
 
 app = FastAPI(title='VostokTelekom Mobile API', description='BASE URL >> https://mobile.vt54.ru')
 scheduler = AsyncIOScheduler()
@@ -209,7 +209,8 @@ async def requisites(current_user: str = Depends(get_current_user)):
 async def startup_event():
     await init_db()
     scheduler.start()
-    scheduler.add_job(check_news_alerts, trigger='interval', minutes=1, max_instances=1)
+    scheduler.add_job(pay_day_push, trigger='interval', days=1, max_instances=1)
+    scheduler.add_job(check_news_alerts, trigger='interval', minutes=5, max_instances=1)
     scheduler.add_job(init_autopay, trigger='interval', days=1, max_instances=1,
                       next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=60))
 
