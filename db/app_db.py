@@ -456,28 +456,22 @@ async def set_accident_status(accounts: list) -> None:
                 await cursor.execute("UPDATE alerts SET status = %s", (0,))
 
                 # Prepare data for batch operations
-                accounts_to_insert = []
-                accounts_to_update = []
+                account_statuses = []
 
                 for account in accounts:
                     current_status = await get_accident_status(account)
                     if not current_status:
-                        accounts_to_insert.append((account, 1))
-                    else:
-                        accounts_to_update.append((1, account))
+                        account_statuses.append((str(account), 1))
 
-                # Perform batch inserts
-                if accounts_to_insert:
+                # Perform batch inserts or updates
+                if account_statuses:
                     await cursor.executemany(
-                        "INSERT IGNORE INTO alerts (user, status) VALUES (%s, %s)",
-                        accounts_to_insert
-                    )
-
-                # Perform batch updates
-                if accounts_to_update:
-                    await cursor.executemany(
-                        "UPDATE alerts SET status = %s WHERE user = %s",
-                        accounts_to_update
+                        """
+                        INSERT INTO alerts (user, status) 
+                        VALUES (%s, %s) AS new
+                        ON DUPLICATE KEY UPDATE status = new.status
+                        """,
+                        account_statuses
                     )
 
                 # Commit all changes
