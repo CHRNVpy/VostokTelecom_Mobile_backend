@@ -12,7 +12,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 from acquiring import get_status_payment, pay_request, autopay_request
 from db.app_db import set_autopay, get_accounts, set_accident_status, get_autopay_users, add_news, news_exist, \
-    update_news, _when_to_pay
+    update_news, _when_to_pay, get_accident_status
 from db.billing_db import update_user_balance_old, get_user_group_ids, get_user_location
 from dotenv import load_dotenv
 
@@ -65,7 +65,6 @@ async def init_autopay():
 
 
 async def push(message, account):
-    print(message, account)
     headers = {
         'Authorization': f'Basic {os.getenv("push_api_key")}',
         'accept': 'application/json',
@@ -84,8 +83,10 @@ async def push(message, account):
 
     json_data = json.dumps(data)
 
-    async with aiohttp.ClientSession() as session:
-        await session.post('https://onesignal.com/api/v1/notifications', headers=headers, data=json_data)
+    current_accident_status = await get_accident_status(account)
+    if not current_accident_status:
+        async with aiohttp.ClientSession() as session:
+            await session.post('https://onesignal.com/api/v1/notifications', headers=headers, data=json_data)
 
 
 async def check_alerts():
@@ -174,12 +175,12 @@ async def check_alerts():
         # accounts_to_notify = ["0000"]
 
         if accounts_to_notify:
-            await set_accident_status(accounts_to_notify)
             # setting alert news message to affected acoounts
             alert_message = "На линии авария, но мы уже над этим работаем !"
             await asyncio.gather(*[update_news((location := await get_user_location(account))['location_id'],
                                                location['location'], alert_message) for account in accounts_to_notify])
             await asyncio.gather(*[push(alert_message, account) for account in accounts_to_notify])
+            await set_accident_status(accounts_to_notify)
     except KeyError:
         pass
 
