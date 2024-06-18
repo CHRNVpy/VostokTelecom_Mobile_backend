@@ -170,7 +170,7 @@ async def check_alerts():
         bgbilling_accounts_to_notify = [account for name in bgbilling_names for account in groups.get(name, [])]
 
         accounts_to_notify = felix_accounts_to_notify + bgbilling_accounts_to_notify
-        print('Accounts to notify: ', accounts_to_notify)
+        # print('Accounts to notify: ', accounts_to_notify)
         # accounts_to_notify = ["0000"]
 
         if accounts_to_notify:

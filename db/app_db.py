@@ -452,17 +452,35 @@ async def set_accident_status(accounts: list) -> None:
     async with aiomysql.create_pool(**app_db_config) as pool:
         async with pool.acquire() as conn:
             async with conn.cursor() as cursor:
+                # Reset all statuses to 0
                 await cursor.execute("UPDATE alerts SET status = %s", (0,))
+
+                # Prepare data for batch operations
+                accounts_to_insert = []
+                accounts_to_update = []
 
                 for account in accounts:
                     current_status = await get_accident_status(account)
                     if not current_status:
-                        await cursor.execute("INSERT IGNORE INTO alerts (user, status) VALUES (%s, %s)",
-                                             (account, 1))
+                        accounts_to_insert.append((account, 1))
                     else:
-                        await cursor.execute("UPDATE alerts SET status = %s WHERE user = %s",
-                                             (1, account))
+                        accounts_to_update.append((1, account))
 
+                # Perform batch inserts
+                if accounts_to_insert:
+                    await cursor.executemany(
+                        "INSERT IGNORE INTO alerts (user, status) VALUES (%s, %s)",
+                        accounts_to_insert
+                    )
+
+                # Perform batch updates
+                if accounts_to_update:
+                    await cursor.executemany(
+                        "UPDATE alerts SET status = %s WHERE user = %s",
+                        accounts_to_update
+                    )
+
+                # Commit all changes
                 await conn.commit()
 
 
