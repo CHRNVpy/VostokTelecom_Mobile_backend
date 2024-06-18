@@ -122,7 +122,7 @@ async def init_db():
                 await cur.execute(
                     "CREATE TABLE IF NOT EXISTS alerts ("
                     "id INT AUTO_INCREMENT PRIMARY KEY, "
-                    "user VARCHAR(255), "
+                    "user VARCHAR(255) UNIQUE, "
                     "status INT, "
                     "FOREIGN KEY(user) REFERENCES refresh_tokens(user))"
                 )
@@ -474,5 +474,3 @@ async def get_requisites():
 async def get_requisites_json():
     async with aiofiles.open('requisites.json', mode='r') as file:
         return json.loads(await file.read())
-
-# print(asyncio.run(get_requisites()))
