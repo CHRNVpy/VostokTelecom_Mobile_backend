@@ -208,10 +208,10 @@ async def check_news():
 async def pay_day_push():
     accounts = await get_accounts()
     accounts_list = [v for v in accounts.values() for v in v]
-    yesterday = (datetime.datetime.now().date() - datetime.timedelta(days=1)).strftime('%d.%m.%Y')
+    tomorrow = (datetime.datetime.now().date() + datetime.timedelta(days=1)).strftime('%d.%m.%Y')
     for account in accounts_list:
         account_pay_day = await _when_to_pay(account)
-        if yesterday == account_pay_day:
+        if tomorrow == account_pay_day:
             message = f'{account_pay_day} списание абонентской платы по вашему тарифу, не забудьте пополнить баланс !'
             await push(message, account)
 
@@ -221,4 +221,4 @@ async def check_news_alerts():
     await check_alerts()
 
 
-# asyncio.run(check_alerts())
+# asyncio.run(pay_day_push())
