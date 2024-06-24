@@ -411,6 +411,7 @@ async def get_user_data_old(account: str | int):
             SELECT date_close
             FROM payment
             WHERE account_id = account.id
+            AND type != 2
             ORDER BY date_close DESC
             LIMIT 1
         ) AS pay_day

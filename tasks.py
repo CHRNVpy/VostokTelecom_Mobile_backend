@@ -64,7 +64,7 @@ async def init_autopay():
             await check_payment_status(pay_response['orderId'], user_id, autopay=True)
 
 
-async def push(message, account):
+async def push(message, account, accident=False):
     headers = {
         'Authorization': f'Basic {os.getenv("push_api_key")}',
         'accept': 'application/json',
@@ -83,8 +83,12 @@ async def push(message, account):
 
     json_data = json.dumps(data)
 
-    current_accident_status = await get_accident_status(account)
-    if not current_accident_status:
+    if accident:
+        current_accident_status = await get_accident_status(account)
+        if not current_accident_status:
+            async with aiohttp.ClientSession() as session:
+                await session.post('https://onesignal.com/api/v1/notifications', headers=headers, data=json_data)
+    else:
         async with aiohttp.ClientSession() as session:
             await session.post('https://onesignal.com/api/v1/notifications', headers=headers, data=json_data)
 
@@ -179,7 +183,7 @@ async def check_alerts():
             alert_message = "На линии авария, но мы уже над этим работаем !"
             await asyncio.gather(*[update_news((location := await get_user_location(account))['location_id'],
                                                location['location'], alert_message) for account in accounts_to_notify])
-            await asyncio.gather(*[push(alert_message, account) for account in accounts_to_notify])
+            await asyncio.gather(*[push(alert_message, account, accident=True) for account in accounts_to_notify])
             await set_accident_status(accounts_to_notify)
     except KeyError:
         pass
