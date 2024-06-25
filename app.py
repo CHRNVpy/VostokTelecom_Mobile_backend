@@ -209,7 +209,7 @@ async def requisites(current_user: str = Depends(get_current_user)):
 async def startup_event():
     await init_db()
     scheduler.start()
-    scheduler.add_job(pay_day_push, trigger='interval', days=1, max_instances=1)
+    scheduler.add_job(pay_day_push, trigger='cron', hour=10, minute=0, max_instances=1)
     scheduler.add_job(check_news_alerts, trigger='interval', minutes=5, max_instances=1)
     scheduler.add_job(init_autopay, trigger='interval', days=1, max_instances=1,
                       next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=60))
