@@ -11,9 +11,9 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
 from acquiring import get_status_payment, pay_request, autopay_request
-from db.app_db import set_autopay, get_accounts, set_accident_status, get_autopay_users, add_news, news_exist, \
-    update_news, _when_to_pay, get_accident_status
-from db.billing_db import update_user_balance_old, get_user_group_ids, get_user_location
+from db.app_db import (set_autopay, get_accounts, set_accident_status, get_autopay_users, news_exist, _when_to_pay,
+                       get_accident_status, upsert_news)
+from db.billing_db import update_user_balance_old, get_user_group_ids, get_user_location, get_group_id
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -83,14 +83,19 @@ async def push(message, account, accident=False):
 
     json_data = json.dumps(data)
 
-    if accident:
-        current_accident_status = await get_accident_status(account)
-        if not current_accident_status:
-            async with aiohttp.ClientSession() as session:
-                await session.post('https://onesignal.com/api/v1/notifications', headers=headers, data=json_data)
-    else:
-        async with aiohttp.ClientSession() as session:
-            await session.post('https://onesignal.com/api/v1/notifications', headers=headers, data=json_data)
+    async with aiohttp.ClientSession() as session:
+        if accident:
+            current_accident_status = await get_accident_status(account)
+            if not current_accident_status:
+                async with session.post('https://onesignal.com/api/v1/notifications',
+                                        headers=headers,
+                                        data=json_data) as response:
+                    await response.text()
+        else:
+            async with session.post('https://onesignal.com/api/v1/notifications',
+                                    headers=headers,
+                                    data=json_data) as response:
+                await response.text()
 
 
 async def check_alerts():
@@ -199,14 +204,25 @@ async def check_news():
 
     wks = client.open("vt54_news").sheet1
     all_rows = wks.get_all_values()
-    if await news_exist():
-        for row in all_rows:
-            if row[1].isdigit():
-                await update_news(int(row[1]), row[0], row[2])
-    else:
-        for row in all_rows:
-            if row[1].isdigit():
-                await add_news(int(row[1]), row[0], row[2])
+    for row in all_rows:
+        location, group_id, message = row
+        if group_id.isdigit():
+            if not await news_exist(location, message) and message != '':
+                accounts = await get_accounts()
+                accounts_list = [v for v in accounts.values() for v in v]
+
+                async def check_group_id(account, target_group_id):
+                    group_id, other_value = await get_group_id(account)
+                    return group_id == target_group_id
+
+                accounts_to_notify = [account for account in accounts_list
+                                      if await check_group_id(account, int(group_id))]
+                if accounts_to_notify:
+                    await asyncio.gather(*[push(message, account) for account in accounts_to_notify])
+            await upsert_news(int(group_id), location, message)
+
+
+
 
 
 async def pay_day_push():
@@ -223,6 +239,3 @@ async def pay_day_push():
 async def check_news_alerts():
     await check_news()
     await check_alerts()
-
-
-# asyncio.run(pay_day_push())

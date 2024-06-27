@@ -141,7 +141,7 @@ async def init_db():
                     "CREATE TABLE IF NOT EXISTS news ("
                     "id INT AUTO_INCREMENT PRIMARY KEY, "
                     "group_id INT, "
-                    "location TEXT, "
+                    "location VARCHAR(255) UNIQUE, "
                     "message TEXT)"
                 )
 
@@ -180,33 +180,28 @@ async def is_refresh_token_valid(refresh_token: str):
                 return result is not None
 
 
-async def news_exist():
+async def news_exist(location: str, message: str) -> list | None:
     async with aiomysql.create_pool(**app_db_config) as pool:
         async with pool.acquire() as conn:
             async with conn.cursor() as cur:
-                await cur.execute("SELECT * FROM news LIMIT 1")
+                await cur.execute("SELECT message FROM news WHERE location = %s AND message = %s",
+                                  (location, message))
                 result = await cur.fetchone()
                 return result is not None
 
 
-async def add_news(group_id: int, location: str, message: str):
+async def upsert_news(group_id: int, location: str, message: str):
     async with aiomysql.create_pool(**app_db_config) as pool:
         async with pool.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(
-                    "INSERT INTO news (group_id, location, message) VALUES (%s, %s, %s)",
+                    """
+                    INSERT INTO news (group_id, location, message)
+                    VALUES (%s, %s, %s) as updates
+                    ON DUPLICATE KEY UPDATE
+                        message = updates.message
+                    """,
                     (group_id, location, message)
-                )
-            await conn.commit()
-
-
-async def update_news(group_id: int, location: str, message: str):
-    async with aiomysql.create_pool(**app_db_config) as pool:
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(
-                    "UPDATE news SET message = %s WHERE group_id = %s AND location = %s",
-                    (message, group_id, location)
                 )
             await conn.commit()
 
