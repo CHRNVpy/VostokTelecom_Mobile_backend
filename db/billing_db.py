@@ -510,13 +510,12 @@ async def get_user_location_old(account):
 async def get_user_location_new(account):
     location_query = """
         SELECT 
-            contract_group.id AS location_id,
-            contract_group.title AS location
-        FROM contract
-        LEFT JOIN
-            contract_group ON contract_group.id = contract.gr
+            cg.id AS location_id,
+            cg.title AS location
+        FROM contract c
+        INNER JOIN contract_group cg ON (c.gr >> cg.id) & 1 = 1
         WHERE
-            contract.title = %s
+            c.title = %s
         LIMIT 1;
         """
     async with aiomysql.create_pool(**db_config) as pool:
